@@ -1,0 +1,11 @@
+{
+  "domain": "norish",
+  "name": "Norish Recipes Integration",
+  "codeowners": [],
+  "config_flow": true, 
+  "documentation": "https://github.com/Caps3n/hass-norish/",
+  "iot_class": "local_polling",
+  "issue_tracker": "",
+  "requirements": [],
+  "version": "0.0.2"
+}
