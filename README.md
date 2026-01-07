@@ -1,4 +1,3 @@
-# hass-norish
 # Norish Integration for Home Assistant
 
 Bring your [Norish](https://github.com/norish-recipes/norish) recipe manager directly into your smart home! This integration connects your self-hosted Norish instance with Home Assistant to streamline meal planning and grocery shopping for families and friends.
@@ -63,30 +62,40 @@ content: >
 ## 🛠 Installation
 
 ### Option 1: HACS (Recommended)
-Ensure HACS is installed.
 
-Go to HACS > Integrations > 3-dot menu > Custom repositories.
+#### Now: Via Custom Repository
+1. Open **HACS** in your Home Assistant.
+2. Go to **Integrations** and click the **3-dot menu** (top right) > **Custom repositories**.
+3. Paste: `https://github.com/Caps3n/hass-norish`
+4. Select **Integration** as the category and click **Add**.
+5. Once added, you can find **Norish Recipes** via the HACS search.
+6. Click **Download**, then **Restart Home Assistant**.
 
-Paste: https://github.com/Caps3n/hass-norish
+#### Future: Direct Search
+1. Open **HACS** > **Integrations** > **Explore & Download Repositories**.
+2. Search for **Norish Recipes**.
+3. Click **Download** and **Restart Home Assistant**.
 
-Select Integration and click Add.
-
-Restart Home Assistant.
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Caps3n&repository=hass-norish&category=integration)
 
 ### Option 2: Manual Installation
-Download the norish folder from custom_components/.
-
-Copy the folder into your Home Assistant /config/custom_components/ directory.
+1. Download the `norish` folder from `custom_components/`.
+2. Copy the folder into your Home Assistant `/config/custom_components/` directory.
+3. Restart Home Assistant.
 
 Restart Home Assistant.
 
 ## ⚙️ Configuration
-You will need:
-* The **URL** of your Norish instance (e.g., `http://192.168.1.50:8080`)
-* Your **API Token** (found in your Norish user settings)
+
+1. **Go to Settings > Devices & Services > Add Integration**.
+2. Search for **Norish Recipes**.
+3. You will need:
+      * Your **Norish Instance URL** (e.g., `http://192.168.1.50:8080`)
+      * Your **API Token** (found in your Norish user settings)
 
 ## 🗺️ Roadmap
 
+- [ ] **Multi-language Support:** Full translation of the integration UI and sensor data (English, German, etc.).
 
 ---
 *Developed by @Caps3n. This project is an independent integration and is not officially affiliated with the core Norish development team.*
