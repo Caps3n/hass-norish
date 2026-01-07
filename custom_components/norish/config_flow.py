@@ -1,23 +1,24 @@
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
-from homeassistant.const import CONF_URL, CONF_PASSWORD
+from homeassistant.const import CONF_URL, CONF_API_KEY
 from .const import DOMAIN, DEFAULT_URL
 
 class NorishConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
+        errors = {}
         if user_input is not None:
+            # Validierung könnte hier stattfinden (z.B. Test-Verbindung)
             return self.async_create_entry(title="Norish", data=user_input)
 
-        # Wir fragen nur noch nach URL und API-Key
         data_schema = vol.Schema({
             vol.Required(CONF_URL, default=DEFAULT_URL): str,
-            vol.Required(CONF_PASSWORD): str, # Intern als Passwort gespeichert, Label ist API-Key
+            vol.Required(CONF_API_KEY): str,
         })
 
-        return self.async_show_form(step_id="user", data_schema=data_schema)
+        return self.async_show_form(step_id="user", data_schema=data_schema, errors=errors)
 
     @staticmethod
     @callback
