@@ -1,11 +1,12 @@
 {
   "domain": "norish",
-  "name": "Norish Recipes",
+  "name": "Norish Recipes & Meal Planning",
   "codeowners": ["@Caps3n"],
-  "config_flow": true, 
+  "config_flow": true,
+  "dependencies": ["camera"],
   "documentation": "https://github.com/Caps3n/hass-norish/",
-  "iot_class": "local_polling",
+  "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/Caps3n/hass-norish/issues",
-  "requirements": [],
-  "version": "0.0.3"
+  "requirements": ["aiohttp>=3.9.0"],
+  "version": "1.3.0"
 }

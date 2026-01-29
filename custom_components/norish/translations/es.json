@@ -1,0 +1,82 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configurar Norish",
+        "description": "Ingrese la URL de su instancia de Norish y su clave API.",
+        "data": {
+          "url": "URL del servidor",
+          "api_key": "Clave API"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Conexión fallida. Por favor, verifique la URL y su conexión de red.",
+      "invalid_auth": "Clave API inválida. Por favor, verifique sus credenciales.",
+      "unknown": "Ocurrió un error inesperado."
+    },
+    "abort": {
+      "already_configured": "Esta instancia de Norish ya está configurada."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opciones de Norish",
+        "description": "Elija qué tipos de comidas se deben mostrar.",
+        "data": {
+          "show_breakfast": "Mostrar desayuno",
+          "show_lunch": "Mostrar almuerzo",
+          "show_dinner": "Mostrar cena",
+          "show_snack": "Mostrar meriendas"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "meals_today": {
+        "name": "Comidas de hoy",
+        "state": {
+          "no_plan": "Sin plan"
+        }
+      },
+      "meal_breakfast": {
+        "name": "Desayuno"
+      },
+      "meal_lunch": {
+        "name": "Almuerzo"
+      },
+      "meal_dinner": {
+        "name": "Cena"
+      },
+      "meal_snack": {
+        "name": "Merienda"
+      }
+    },
+    "calendar": {
+      "meal_plan": {
+        "name": "Plan de comidas"
+      }
+    },
+    "todo": {
+      "grocery_list": {
+        "name": "Lista de compras"
+      }
+    },
+    "camera": {
+      "breakfast_image": {
+        "name": "Imagen de desayuno"
+      },
+      "lunch_image": {
+        "name": "Imagen de almuerzo"
+      },
+      "dinner_image": {
+        "name": "Imagen de cena"
+      },
+      "snack_image": {
+        "name": "Imagen de merienda"
+      }
+    }
+  }
+}

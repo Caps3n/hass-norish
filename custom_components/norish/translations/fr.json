@@ -1,0 +1,82 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configurer Norish",
+        "description": "Entrez l'URL de votre instance Norish et votre clé API.",
+        "data": {
+          "url": "URL du serveur",
+          "api_key": "Clé API"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "La connexion a échoué. Veuillez vérifier l'URL et votre connexion réseau.",
+      "invalid_auth": "Clé API invalide. Veuillez vérifier vos identifiants.",
+      "unknown": "Une erreur inattendue s'est produite."
+    },
+    "abort": {
+      "already_configured": "Cette instance Norish est déjà configurée."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options Norish",
+        "description": "Choisissez les types de repas à afficher.",
+        "data": {
+          "show_breakfast": "Afficher le petit-déjeuner",
+          "show_lunch": "Afficher le déjeuner",
+          "show_dinner": "Afficher le dîner",
+          "show_snack": "Afficher les collations"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "meals_today": {
+        "name": "Repas d'aujourd'hui",
+        "state": {
+          "no_plan": "Aucun plan"
+        }
+      },
+      "meal_breakfast": {
+        "name": "Petit-déjeuner"
+      },
+      "meal_lunch": {
+        "name": "Déjeuner"
+      },
+      "meal_dinner": {
+        "name": "Dîner"
+      },
+      "meal_snack": {
+        "name": "Collation"
+      }
+    },
+    "calendar": {
+      "meal_plan": {
+        "name": "Plan de repas"
+      }
+    },
+    "todo": {
+      "grocery_list": {
+        "name": "Liste de courses"
+      }
+    },
+    "camera": {
+      "breakfast_image": {
+        "name": "Image du petit-déjeuner"
+      },
+      "lunch_image": {
+        "name": "Image du déjeuner"
+      },
+      "dinner_image": {
+        "name": "Image du dîner"
+      },
+      "snack_image": {
+        "name": "Image de la collation"
+      }
+    }
+  }
+}

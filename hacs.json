@@ -1,7 +1,7 @@
 {
-  "name": "Norish Recipes",
-  "content_in_root": false,
-  "zip_release": false,
+  "name": "Norish Recipes & Meal Planning",
   "render_readme": true,
+  "domains": ["sensor", "calendar", "todo", "camera"],
+  "iot_class": "Cloud Polling",
   "homeassistant": "2024.1.0"
 }

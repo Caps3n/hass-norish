@@ -32,51 +32,5 @@
         }
       }
     }
-  },
-  "entity": {
-    "sensor": {
-      "meals_today": {
-        "name": "Meals Today",
-        "state": {
-          "no_plan": "No Plan"
-        }
-      },
-      "meal_breakfast": {
-        "name": "Breakfast"
-      },
-      "meal_lunch": {
-        "name": "Lunch"
-      },
-      "meal_dinner": {
-        "name": "Dinner"
-      },
-      "meal_snack": {
-        "name": "Snack"
-      }
-    },
-    "calendar": {
-      "meal_plan": {
-        "name": "Meal Plan"
-      }
-    },
-    "todo": {
-      "grocery_list": {
-        "name": "Grocery List"
-      }
-    },
-    "camera": {
-      "breakfast_image": {
-        "name": "Breakfast Image"
-      },
-      "lunch_image": {
-        "name": "Lunch Image"
-      },
-      "dinner_image": {
-        "name": "Dinner Image"
-      },
-      "snack_image": {
-        "name": "Snack Image"
-      }
-    }
   }
 }

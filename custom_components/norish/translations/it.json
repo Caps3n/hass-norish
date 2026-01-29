@@ -1,0 +1,82 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configura Norish",
+        "description": "Inserisci l'URL della tua istanza Norish e la tua chiave API.",
+        "data": {
+          "url": "URL del server",
+          "api_key": "Chiave API"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Connessione fallita. Verifica l'URL e la tua connessione di rete.",
+      "invalid_auth": "Chiave API non valida. Verifica le tue credenziali.",
+      "unknown": "Si è verificato un errore imprevisto."
+    },
+    "abort": {
+      "already_configured": "Questa istanza Norish è già configurata."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni Norish",
+        "description": "Scegli quali tipi di pasti visualizzare.",
+        "data": {
+          "show_breakfast": "Mostra colazione",
+          "show_lunch": "Mostra pranzo",
+          "show_dinner": "Mostra cena",
+          "show_snack": "Mostra spuntini"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "meals_today": {
+        "name": "Pasti di oggi",
+        "state": {
+          "no_plan": "Nessun piano"
+        }
+      },
+      "meal_breakfast": {
+        "name": "Colazione"
+      },
+      "meal_lunch": {
+        "name": "Pranzo"
+      },
+      "meal_dinner": {
+        "name": "Cena"
+      },
+      "meal_snack": {
+        "name": "Spuntino"
+      }
+    },
+    "calendar": {
+      "meal_plan": {
+        "name": "Piano pasti"
+      }
+    },
+    "todo": {
+      "grocery_list": {
+        "name": "Lista della spesa"
+      }
+    },
+    "camera": {
+      "breakfast_image": {
+        "name": "Immagine colazione"
+      },
+      "lunch_image": {
+        "name": "Immagine pranzo"
+      },
+      "dinner_image": {
+        "name": "Immagine cena"
+      },
+      "snack_image": {
+        "name": "Immagine spuntino"
+      }
+    }
+  }
+}

@@ -1,0 +1,394 @@
+## Home Assistant Dashboard - Norish Rezepte mit Bildern
+
+### 🎯 Dashboard-Vorlagen
+
+---
+
+## 1. Einfache Karte mit Bild
+
+```yaml
+type: picture-entity
+entity: sensor.norish_mittagessen
+name: Mittagessen Heute
+show_name: true
+show_state: true
+tap_action:
+  action: more-info
+```
+
+**Vorschau:**
+```
+┌─────────────────────────┐
+│   [Großes Rezeptbild]   │
+│                         │
+│   Mittagessen Heute     │
+│   Spaghetti Carbonara   │
+└─────────────────────────┘
+```
+
+---
+
+## 2. Kompakte Übersicht (alle Mahlzeiten)
+
+```yaml
+type: vertical-stack
+cards:
+  - type: markdown
+    content: "# 🍽️ Speiseplan für {{ now().strftime('%A, %d. %B') }}"
+  
+  - type: horizontal-stack
+    cards:
+      - type: custom:button-card
+        entity: sensor.norish_fruhstuck
+        name: Frühstück
+        show_state: true
+        show_entity_picture: true
+        entity_picture: "{{ state_attr('sensor.norish_fruhstuck', 'image') }}"
+        styles:
+          card:
+            - height: 200px
+          img_cell:
+            - height: 120px
+          name:
+            - font-size: 14px
+          state:
+            - font-size: 12px
+      
+      - type: custom:button-card
+        entity: sensor.norish_mittagessen
+        name: Mittagessen
+        show_state: true
+        show_entity_picture: true
+        entity_picture: "{{ state_attr('sensor.norish_mittagessen', 'image') }}"
+        styles:
+          card:
+            - height: 200px
+          img_cell:
+            - height: 120px
+      
+      - type: custom:button-card
+        entity: sensor.norish_abendessen
+        name: Abendessen
+        show_state: true
+        show_entity_picture: true
+        entity_picture: "{{ state_attr('sensor.norish_abendessen', 'image') }}"
+        styles:
+          card:
+            - height: 200px
+          img_cell:
+            - height: 120px
+```
+
+**Hinweis:** Benötigt [button-card](https://github.com/custom-cards/button-card) Custom Component
+
+---
+
+## 3. Ohne Custom Components (Standard-Karten)
+
+```yaml
+type: vertical-stack
+cards:
+  # Header
+  - type: markdown
+    content: |
+      # 🍽️ Heute auf dem Speiseplan
+      {{ now().strftime('%A, %d. %B %Y') }}
+  
+  # Hauptgericht mit großem Bild
+  - type: picture-entity
+    entity: sensor.norish_mittagessen
+    show_name: true
+    show_state: true
+    tap_action:
+      action: more-info
+  
+  # Andere Mahlzeiten
+  - type: entities
+    title: Weitere Mahlzeiten
+    entities:
+      - entity: sensor.norish_fruhstuck
+        secondary_info: last-changed
+      - entity: sensor.norish_abendessen
+        secondary_info: last-changed
+      - entity: sensor.norish_snack
+        secondary_info: last-changed
+```
+
+---
+
+## 4. Grid-Layout (Modern)
+
+```yaml
+type: grid
+square: false
+columns: 2
+cards:
+  - type: picture-entity
+    entity: sensor.norish_fruhstuck
+    name: Frühstück
+    show_state: true
+    
+  - type: picture-entity
+    entity: sensor.norish_mittagessen
+    name: Mittagessen
+    show_state: true
+    
+  - type: picture-entity
+    entity: sensor.norish_abendessen
+    name: Abendessen
+    show_state: true
+    
+  - type: picture-entity
+    entity: sensor.norish_snack
+    name: Snack
+    show_state: true
+```
+
+**Vorschau:**
+```
+┌───────────┬───────────┐
+│ Frühstück │Mittagessen│
+│  [Bild]   │  [Bild]   │
+└───────────┴───────────┘
+┌───────────┬───────────┐
+│Abendessen │   Snack   │
+│  [Bild]   │  [Bild]   │
+└───────────┴───────────┘
+```
+
+---
+
+## 5. Mit Rezept-Details (Markdown)
+
+```yaml
+type: markdown
+content: |
+  {% set meal = states.sensor.norish_mittagessen %}
+  {% if meal.attributes.images %}
+  
+  ## 🍽️ Mittagessen Heute
+  
+  ![{{ meal.state }}]({{ meal.attributes.images[0].url }})
+  
+  ### {{ meal.state }}
+  
+  {% if meal.attributes.raw_data and meal.attributes.raw_data|length > 0 %}
+  {% set recipe = meal.attributes.raw_data[0] %}
+  
+  {% if recipe.description %}
+  {{ recipe.description }}
+  {% endif %}
+  
+  {% if recipe.cooking_time %}
+  ⏱️ Zubereitungszeit: {{ recipe.cooking_time }} Minuten
+  {% endif %}
+  
+  {% if recipe.servings %}
+  👥 Portionen: {{ recipe.servings }}
+  {% endif %}
+  {% endif %}
+  
+  {% else %}
+  
+  ## Kein Mittagessen geplant
+  
+  {% endif %}
+```
+
+---
+
+## 6. Wochenübersicht (mit Kalender)
+
+```yaml
+type: vertical-stack
+cards:
+  - type: markdown
+    content: "# 📅 Wochenplan"
+  
+  - type: custom:atomic-calendar-revive
+    entities:
+      - entity: calendar.norish_speiseplan
+        color: orange
+    maxDaysToShow: 7
+    showDate: true
+    showMonth: true
+    
+  - type: horizontal-stack
+    cards:
+      - type: picture-entity
+        entity: sensor.norish_mittagessen
+        name: Heute Mittag
+      - type: picture-entity
+        entity: sensor.norish_abendessen
+        name: Heute Abend
+```
+
+**Hinweis:** Benötigt [atomic-calendar-revive](https://github.com/totaldebug/atomic-calendar-revive)
+
+---
+
+## 7. Mit Einkaufsliste kombiniert
+
+```yaml
+type: vertical-stack
+cards:
+  # Heutiges Essen
+  - type: picture-entity
+    entity: sensor.norish_mittagessen
+    name: Mittagessen
+    show_state: true
+  
+  # Einkaufsliste
+  - type: todo-list
+    entity: todo.norish_unsortiert
+    title: 🛒 Einkaufsliste
+```
+
+---
+
+## 8. Mobile-optimiert (Swipe Card)
+
+```yaml
+type: custom:swipe-card
+card_width: "95%"
+parameters:
+  effect: coverflow
+  spaceBetween: 8
+  centeredSlides: true
+cards:
+  - type: picture-entity
+    entity: sensor.norish_fruhstuck
+    name: Frühstück
+    show_state: true
+  
+  - type: picture-entity
+    entity: sensor.norish_mittagessen
+    name: Mittagessen
+    show_state: true
+  
+  - type: picture-entity
+    entity: sensor.norish_abendessen
+    name: Abendessen
+    show_state: true
+```
+
+**Hinweis:** Benötigt [swipe-card](https://github.com/bramkragten/swipe-card)
+
+---
+
+## 9. Mit Conditional Card (nur wenn Bild vorhanden)
+
+```yaml
+type: vertical-stack
+cards:
+  # Zeige nur, wenn Mittagessen geplant ist
+  - type: conditional
+    conditions:
+      - entity: sensor.norish_mittagessen
+        state_not: "Kein Plan"
+    card:
+      type: picture-entity
+      entity: sensor.norish_mittagessen
+      show_state: true
+  
+  # Fallback wenn nichts geplant
+  - type: conditional
+    conditions:
+      - entity: sensor.norish_mittagessen
+        state: "Kein Plan"
+    card:
+      type: markdown
+      content: |
+        ## 🤷 Heute nichts geplant
+        
+        Füge ein Rezept im Kalender hinzu!
+```
+
+---
+
+## 10. Mit Glance Card (Kompakt)
+
+```yaml
+type: glance
+title: Heute
+show_name: true
+show_state: true
+entities:
+  - entity: sensor.norish_fruhstuck
+    name: Frühstück
+  - entity: sensor.norish_mittagessen
+    name: Mittag
+  - entity: sensor.norish_abendessen
+    name: Abend
+  - entity: sensor.norish_snack
+    name: Snack
+```
+
+**Hinweis:** Zeigt kleine Bilder in einer Zeile
+
+---
+
+## 🎨 Styling-Tipps
+
+### Custom CSS (mit card-mod)
+
+```yaml
+type: picture-entity
+entity: sensor.norish_mittagessen
+card_mod:
+  style: |
+    ha-card {
+      border-radius: 15px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+    .name {
+      font-size: 18px;
+      font-weight: bold;
+      padding: 10px;
+    }
+    .state {
+      font-size: 16px;
+      padding: 5px 10px 10px;
+    }
+```
+
+**Hinweis:** Benötigt [card-mod](https://github.com/thomasloven/lovelace-card-mod)
+
+---
+
+## 📱 Beste Konfiguration für verschiedene Geräte
+
+### Desktop/Tablet (breiter Bildschirm)
+→ Verwende **Grid Layout** (Option 4) oder **Horizontal Stack**
+
+### Smartphone (schmal)
+→ Verwende **Vertical Stack** (Option 3) oder **Swipe Card** (Option 8)
+
+### Alle Geräte (responsiv)
+→ Verwende **Grid mit columns: 2** und **square: false**
+
+---
+
+## 🔧 Empfohlene Custom Components
+
+Für die besten Ergebnisse:
+
+1. **[button-card](https://github.com/custom-cards/button-card)** - Flexibles Styling
+2. **[card-mod](https://github.com/thomasloven/lovelace-card-mod)** - Custom CSS
+3. **[atomic-calendar-revive](https://github.com/totaldebug/atomic-calendar-revive)** - Schöner Kalender
+4. **[layout-card](https://github.com/thomasloven/lovelace-layout-card)** - Besseres Layout
+
+Installation über HACS empfohlen!
+
+---
+
+## 🚀 Quick Start Empfehlung
+
+**Beginne mit Option 3** (Standard-Karten, keine Custom Components nötig):
+1. Kopiere die YAML
+2. Füge in dein Dashboard ein
+3. Passe Entities an
+4. Fertig!
+
+Später kannst du mit Custom Components erweitern.
