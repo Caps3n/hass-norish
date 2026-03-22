@@ -50,7 +50,7 @@ Complete Home Assistant integration for [Norish](https://github.com/norish-recip
 ## 📸 Screenshots
 
 ### Week Planner with Videos
-![Week Planner](docs/screenshots/week_planner.png)
+![Week Planner](https://github.com/Caps3n/hass-norish/blob/main/images/week_planner.png?raw=true)
 
 ### Meal Sensors with Images
 ![Meal Sensors](docs/screenshots/meal_sensors.png)
