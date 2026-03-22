@@ -1,9 +1,8 @@
-"""Camera Entity für Norish Rezeptbilder (Alternative Implementierung)."""
+"""Camera platform for Norish recipe images."""
 import logging
-from datetime import datetime
+import os
 from typing import Optional
 
-import aiohttp
 from homeassistant.components.camera import Camera
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
@@ -14,213 +13,117 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    """Setup camera entities."""
+    """Set up Norish cameras."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     
-    # Erstelle Kameras für verschiedene Mahlzeiten
     cameras = [
-        NorishMealCamera(coordinator, entry, "breakfast"),
-        NorishMealCamera(coordinator, entry, "lunch"),
-        NorishMealCamera(coordinator, entry, "dinner"),
-        NorishMealCamera(coordinator, entry, "snack"),
+        NorishRecipeCamera(coordinator, entry, "breakfast", "Frühstück"),
+        NorishRecipeCamera(coordinator, entry, "lunch", "Mittagessen"),
+        NorishRecipeCamera(coordinator, entry, "dinner", "Abendessen"),
+        NorishRecipeCamera(coordinator, entry, "snack", "Snack"),
     ]
     
     async_add_entities(cameras)
 
 
-class NorishMealCamera(CoordinatorEntity, Camera):
-    """Camera Entity die das Rezeptbild anzeigt."""
+class NorishRecipeCamera(CoordinatorEntity, Camera):
+    """Camera entity for Norish recipe images."""
 
-    def __init__(self, coordinator, entry, meal_type: str):
-        """Initialize the camera.
-        
-        Args:
-            coordinator: The data coordinator
-            entry: The config entry
-            meal_type: Type of meal (breakfast, lunch, dinner, snack)
-        """
+    def __init__(self, coordinator, entry, meal_type: str, name: str):
+        """Initialize the camera."""
         CoordinatorEntity.__init__(self, coordinator)
         Camera.__init__(self)
         
+        self._entry = entry
         self._meal_type = meal_type.upper()
-        
-        # Namen
-        type_names = {
-            "BREAKFAST": "Frühstück",
-            "LUNCH": "Mittagessen",
-            "DINNER": "Abendessen",
-            "SNACK": "Snack",
-        }
-        
-        display_name = type_names.get(self._meal_type, meal_type)
-        self._attr_name = f"Norish {display_name} Bild"
+        self._attr_name = f"Norish {name} Bild"
         self._attr_unique_id = f"{entry.entry_id}_camera_{meal_type}"
-        self._attr_brand = "Norish"
-        
-        self._cached_image: Optional[bytes] = None
-        self._last_image_url: Optional[str] = None
+        self.hass = coordinator.hass
+
+    def _get_base_url(self) -> str:
+        return self.coordinator.api_data.get('url', '').rstrip('/')
 
     @property
-    def is_on(self) -> bool:
-        """Return true if the camera is on (has an image to show)."""
-        return self._get_image_url() is not None
+    def is_streaming(self) -> bool:
+        return False
 
-    async def async_camera_image(
-        self, width: Optional[int] = None, height: Optional[int] = None
-    ) -> Optional[bytes]:
-        """Return image response."""
-        image_url = self._get_image_url()
-        
-        if not image_url:
-            _LOGGER.debug(f"Keine Bild-URL für {self._meal_type}")
-            return None
-        
-        # Cache-Check: Wenn URL gleich ist, nutze gecachtes Bild
-        if image_url == self._last_image_url and self._cached_image:
-            _LOGGER.debug(f"Nutze gecachtes Bild für {self._meal_type}")
-            return self._cached_image
-        
-        # Neues Bild laden
-        try:
-            _LOGGER.debug(f"Lade Bild von: {image_url}")
-            
-            # Headers aus coordinator api_data holen (falls vorhanden)
-            headers = self.coordinator.api_data.get("headers", {})
-            
-            async with self.coordinator.api_data["session"].get(
-                image_url,
-                headers=headers,  # Headers explizit übergeben
-                timeout=aiohttp.ClientTimeout(total=10)
-            ) as resp:
-                if resp.status != 200:
-                    _LOGGER.error(
-                        f"Fehler beim Laden des Bildes: Status {resp.status}"
-                    )
-                    return None
-                
-                image_data = await resp.read()
-                
-                # Cache aktualisieren
-                self._cached_image = image_data
-                self._last_image_url = image_url
-                
-                _LOGGER.debug(
-                    f"Bild erfolgreich geladen: {len(image_data)} bytes"
-                )
-                return image_data
-                
-        except Exception as e:
-            _LOGGER.error(f"Fehler beim Laden des Rezeptbildes: {e}")
-            return None
+    @property
+    def entity_picture(self) -> Optional[str]:
+        return self._get_current_image_url()
 
-    def _get_image_url(self) -> Optional[str]:
-        """Get the image URL for today's meal of this type."""
+    def _get_current_image_url(self) -> Optional[str]:
         if not self.coordinator.data:
             return None
-        
+
         events = self.coordinator.data.get("calendar", [])
-        now_date = dt_util.now().date()
-        
+        today_str = dt_util.now().strftime("%Y-%m-%d")
+        base_url = self._get_base_url()
+
         for event in events:
-            # Datum prüfen
-            date_raw = event.get("date") or event.get("day")
-            if not date_raw:
+            if event.get("date", "") != today_str:
                 continue
-            
-            try:
-                dt_event = datetime.fromisoformat(
-                    date_raw.replace("Z", "+00:00")
-                ).date()
-                
-                if dt_event != now_date:
-                    continue
-                
-                # Typ prüfen
-                event_type = str(
-                    event.get("type") or event.get("slot") or ""
-                ).upper()
-                
-                if event_type != self._meal_type:
-                    continue
-                
-                # Bild-URL finden
-                recipe = event.get("recipe")
-                
-                image_url = None
-                if isinstance(recipe, dict):
-                    image_url = (
-                        recipe.get("image") or
-                        recipe.get("imageUrl") or
-                        recipe.get("picture") or
-                        recipe.get("photo") or
-                        recipe.get("thumbnail")
-                    )
-                
-                if not image_url:
-                    image_url = (
-                        event.get("image") or
-                        event.get("imageUrl") or
-                        event.get("picture")
-                    )
-                
+            slot = event.get("slot") or ""
+            if slot.upper() != self._meal_type:
+                continue
+
+            # Bevorzuge lokales gecachtes Bild
+            local_image = event.get("_local_image")
+            if local_image:
+                return local_image
+
+            # Fallback: Remote-Bild
+            recipe_details = event.get("_recipe", {})
+            if recipe_details:
+                image_url = recipe_details.get("image") or recipe_details.get("imageUrl")
                 if image_url:
+                    if image_url.startswith("/"):
+                        return f"{base_url}{image_url}"
                     return image_url
-                    
-            except Exception as e:
-                _LOGGER.debug(f"Fehler beim Extrahieren der Bild-URL: {e}")
-                continue
-        
+
+            recipe_id = event.get("recipeId")
+            if recipe_id and base_url:
+                return f"{base_url}/api/recipes/{recipe_id}/image"
+
         return None
 
-    @property
-    def extra_state_attributes(self):
-        """Return additional attributes."""
-        attrs = {}
-        
+    async def async_camera_image(self, width: Optional[int] = None, height: Optional[int] = None) -> Optional[bytes]:
         if not self.coordinator.data:
-            return attrs
-        
+            return None
+
         events = self.coordinator.data.get("calendar", [])
-        now_date = dt_util.now().date()
-        
+        today_str = dt_util.now().strftime("%Y-%m-%d")
+
         for event in events:
-            date_raw = event.get("date") or event.get("day")
-            if not date_raw:
+            if event.get("date", "") != today_str:
                 continue
-            
-            try:
-                dt_event = datetime.fromisoformat(
-                    date_raw.replace("Z", "+00:00")
-                ).date()
-                
-                if dt_event != now_date:
-                    continue
-                
-                event_type = str(
-                    event.get("type") or event.get("slot") or ""
-                ).upper()
-                
-                if event_type != self._meal_type:
-                    continue
-                
-                # Rezept-Informationen hinzufügen
-                recipe = event.get("recipe")
-                if isinstance(recipe, dict):
-                    attrs["recipe_name"] = recipe.get("name")
-                    attrs["description"] = recipe.get("description")
-                    attrs["cooking_time"] = recipe.get("cookingTime")
-                    attrs["servings"] = recipe.get("servings")
-                    attrs["recipe_id"] = recipe.get("id")
-                else:
-                    attrs["recipe_name"] = (
-                        event.get("recipeName") or event.get("title")
-                    )
-                
-                attrs["meal_type"] = event_type
-                
-                break
-                
-            except Exception:
+            slot = event.get("slot") or ""
+            if slot.upper() != self._meal_type:
                 continue
-        
-        return attrs
+
+            # Versuche lokales Bild zu laden
+            local_image = event.get("_local_image")
+            if local_image:
+                try:
+                    # Konvertiere /local/norish_images/xxx.jpg zu Dateipfad
+                    filename = local_image.replace("/local/norish_images/", "")
+                    file_path = self.hass.config.path("www/norish_images", filename)
+                    if os.path.exists(file_path):
+                        with open(file_path, 'rb') as f:
+                            return f.read()
+                except Exception as e:
+                    _LOGGER.debug(f"Fehler beim Laden des lokalen Bildes: {e}")
+
+            # Fallback: Remote-Bild laden
+            image_url = self._get_current_image_url()
+            if image_url and not image_url.startswith("/local/"):
+                try:
+                    session = self.coordinator.api_data.get("session")
+                    headers = self.coordinator.api_data.get("headers", {})
+                    
+                    async with session.get(image_url, headers=headers, timeout=10) as response:
+                        if response.status == 200:
+                            return await response.read()
+                except Exception as e:
+                    _LOGGER.debug(f"Fehler beim Laden des Remote-Bildes: {e}")
+
+        return None

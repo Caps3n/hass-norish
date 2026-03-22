@@ -2,81 +2,18 @@
   "config": {
     "step": {
       "user": {
-        "title": "Set up Norish",
-        "description": "Enter the URL of your Norish instance and your API key.",
+        "title": "Connect Norish",
+        "description": "Enter the URL and API key of your Norish instance.",
         "data": {
-          "url": "Server URL",
+          "url": "Norish URL",
           "api_key": "API Key"
         }
       }
     },
     "error": {
-      "cannot_connect": "Connection failed. Please check the URL and your network connection.",
-      "invalid_auth": "Invalid API key. Please check your credentials.",
-      "unknown": "An unexpected error occurred."
-    },
-    "abort": {
-      "already_configured": "This Norish instance is already configured."
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Norish Options",
-        "description": "Choose which meal types should be displayed.",
-        "data": {
-          "show_breakfast": "Show breakfast",
-          "show_lunch": "Show lunch",
-          "show_dinner": "Show dinner",
-          "show_snack": "Show snacks"
-        }
-      }
-    }
-  },
-  "entity": {
-    "sensor": {
-      "meals_today": {
-        "name": "Meals Today",
-        "state": {
-          "no_plan": "No Plan"
-        }
-      },
-      "meal_breakfast": {
-        "name": "Breakfast"
-      },
-      "meal_lunch": {
-        "name": "Lunch"
-      },
-      "meal_dinner": {
-        "name": "Dinner"
-      },
-      "meal_snack": {
-        "name": "Snack"
-      }
-    },
-    "calendar": {
-      "meal_plan": {
-        "name": "Meal Plan"
-      }
-    },
-    "todo": {
-      "grocery_list": {
-        "name": "Grocery List"
-      }
-    },
-    "camera": {
-      "breakfast_image": {
-        "name": "Breakfast Image"
-      },
-      "lunch_image": {
-        "name": "Lunch Image"
-      },
-      "dinner_image": {
-        "name": "Dinner Image"
-      },
-      "snack_image": {
-        "name": "Snack Image"
-      }
+      "cannot_connect": "Connection failed. Check the URL.",
+      "invalid_auth": "Invalid API key.",
+      "unknown": "Unknown error"
     }
   }
 }

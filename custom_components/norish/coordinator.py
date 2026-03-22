@@ -1,7 +1,10 @@
+"""Coordinator für Norish API."""
 import logging
 import json
 import asyncio
 import urllib.parse
+import os
+import hashlib
 from datetime import timedelta, date
 from typing import Optional, Dict, Any, List
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -9,31 +12,35 @@ import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
 
-# Konstanten
 MAX_RETRIES = 3
-RETRY_DELAY_BASE = 1  # Sekunden für exponentielles Backoff
+RETRY_DELAY_BASE = 2
+IMAGE_CACHE_DIR = "www/norish_images"
 
 
 class NorishListCoordinator(DataUpdateCoordinator):
-    """Coordinator für Norish API mit verbesserter Fehlerbehandlung."""
+    """Coordinator für Norish API."""
 
     def __init__(self, hass, api_data: Dict[str, Any]):
         super().__init__(
             hass,
             _LOGGER,
             name="Norish API",
-            update_interval=timedelta(minutes=5),  # Weniger aggressiv
+            update_interval=timedelta(minutes=5),
         )
+        self.hass = hass
         self.api_data = api_data
         self.store_map: Dict[str, str] = {}
         self._last_successful_update: Optional[date] = None
+        self._image_cache_path = os.path.join(hass.config.config_dir, IMAGE_CACHE_DIR)
+        
+        # Erstelle Cache-Verzeichnis falls nicht vorhanden
+        os.makedirs(self._image_cache_path, exist_ok=True)
 
     def _safe_get_trpc_result(
         self, data: Optional[List], default: Any = None
     ) -> Any:
-        """Extrahiert tRPC Ergebnis sicher mit Validierung."""
+        """Extrahiert tRPC Ergebnis sicher."""
         if not data or not isinstance(data, list) or len(data) == 0:
-            _LOGGER.debug("Leere oder ungültige tRPC Antwort")
             return default
 
         try:
@@ -51,33 +58,22 @@ class NorishListCoordinator(DataUpdateCoordinator):
     async def _fetch_trpc(
         self, procedure: str, payload: Optional[Dict] = None
     ) -> Optional[List]:
-        """
-        Holt Daten via GET mit Retry-Logik.
-
-        Args:
-            procedure: tRPC Prozedurname
-            payload: Optional payload für die Anfrage
-
-        Returns:
-            JSON Antwort oder None bei Fehler
-        """
+        """Holt Daten via GET mit Retry-Logik."""
         trpc_input = {"0": {"json": payload}} if payload else {"0": {"json": None}}
         encoded = urllib.parse.quote(
             json.dumps(trpc_input, separators=(",", ":"))
         )
         url = f"{self.api_data['url']}/api/trpc/{procedure}?batch=1&input={encoded}"
 
-        # Headers aus api_data holen
         headers = self.api_data.get("headers", {})
 
         for attempt in range(MAX_RETRIES):
             try:
                 async with self.api_data["session"].get(
                     url, 
-                    headers=headers,  # Headers explizit übergeben
+                    headers=headers,
                     timeout=aiohttp.ClientTimeout(total=10)
                 ) as resp:
-                    # Status-Code Handling
                     if resp.status == 401:
                         _LOGGER.error(
                             f"Norish: Zugriff verweigert (401) bei {procedure}. "
@@ -125,216 +121,217 @@ class NorishListCoordinator(DataUpdateCoordinator):
                     )
                     await asyncio.sleep(delay)
                     continue
-                _LOGGER.error(f"Timeout bei {procedure} nach {MAX_RETRIES} Versuchen")
+                _LOGGER.error(
+                    f"Norish: Timeout bei {procedure} nach {MAX_RETRIES} Versuchen"
+                )
                 return None
 
             except aiohttp.ClientError as e:
                 if attempt < MAX_RETRIES - 1:
                     delay = RETRY_DELAY_BASE * (2**attempt)
                     _LOGGER.warning(
-                        f"Verbindungsfehler bei {procedure}: {e}, "
+                        f"Netzwerkfehler bei {procedure}: {e}, "
                         f"Retry {attempt + 1}/{MAX_RETRIES} in {delay}s"
                     )
                     await asyncio.sleep(delay)
                     continue
                 _LOGGER.error(
-                    f"Verbindung zu Norish fehlgeschlagen bei {procedure}: {e}"
-                )
-                return None
-
-            except Exception as e:
-                _LOGGER.exception(
-                    f"Unerwarteter Fehler bei tRPC Aufruf {procedure}: {e}"
+                    f"Norish: Netzwerkfehler bei {procedure}: {e}"
                 )
                 return None
 
         return None
 
     async def _async_update_data(self) -> Dict[str, Any]:
-        """Aktualisiert alle Daten von der Norish API."""
+        """Holt alle Norish-Daten."""
+        data: Dict[str, Any] = {
+            "calendar": [],
+            "groceries": [],
+            "stores": {},
+        }
+
         try:
-            data = {
-                "calendar": [],
-                "groceries": {"unsorted": []},
-                "last_update": None,
-            }
-
-            # 1. Läden abrufen (nur wenn noch nicht geladen oder täglich)
-            if not self.store_map or self._should_refresh_stores():
-                await self._fetch_stores(data)
-
-            # 2. Kalender abrufen
+            # Kalender-Daten laden
             await self._fetch_calendar(data)
-
-            # 3. Einkaufsliste abrufen
+            
+            # Rezept-Details für jeden Kalender-Eintrag laden
+            await self._fetch_recipe_details_for_calendar(data)
+            
+            # Bilder lokal cachen
+            await self._download_and_cache_images(data)
+            
+            # Einkaufsliste laden
             await self._fetch_groceries(data)
+            
+            # Stores laden
+            await self._fetch_stores(data)
 
-            # Update-Zeit speichern
-            data["last_update"] = date.today()
             self._last_successful_update = date.today()
-
-            return data
+            
+            calendar_count = len(data.get("calendar", []))
+            _LOGGER.info(f"Norish: {calendar_count} Kalender-Events geladen")
 
         except Exception as e:
-            _LOGGER.exception(f"Fehler beim Aktualisieren der Norish Daten: {e}")
-            raise UpdateFailed(f"Update Fehler: {e}")
+            _LOGGER.error(f"Fehler beim Abrufen der Norish-Daten: {e}")
+            raise UpdateFailed(f"Fehler beim Abrufen: {e}")
 
-    def _should_refresh_stores(self) -> bool:
-        """Prüft, ob Store-Liste neu geladen werden sollte."""
-        if not self._last_successful_update:
-            return True
-        # Stores nur einmal täglich neu laden
-        return self._last_successful_update < date.today()
-
-    async def _fetch_stores(self, data: Dict[str, Any]) -> None:
-        """Lädt die Liste der Geschäfte."""
-        s_data = await self._fetch_trpc("stores.list")
-        if not s_data:
-            _LOGGER.warning("Keine Store-Daten erhalten")
-            return
-
-        stores = self._safe_get_trpc_result(s_data, [])
-        if not isinstance(stores, list):
-            _LOGGER.error(f"Unerwartetes Store-Format: {type(stores)}")
-            return
-
-        for store in stores:
-            if not isinstance(store, dict):
-                continue
-            store_id = str(store.get("id", ""))
-            store_name = store.get("name", f"Store {store_id}")
-            if store_id:
-                self.store_map[store_id] = store_name
-                data["groceries"][store_id] = []
-
-        _LOGGER.debug(f"Stores geladen: {len(self.store_map)} Geschäfte")
+        return data
 
     async def _fetch_calendar(self, data: Dict[str, Any]) -> None:
-        """Lädt Kalender-Einträge."""
+        """Lädt Kalender-Einträge - Norish v0.16+ API."""
         today = date.today()
-        start_iso = (today - timedelta(days=1)).strftime("%Y-%m-%dT00:00:00.000Z")
-        end_iso = (today + timedelta(days=14)).strftime("%Y-%m-%dT23:59:59.000Z")
+        # Norish v0.16+ verwendet NUR Datum ohne Zeit!
+        start_date = (today - timedelta(days=1)).strftime("%Y-%m-%d")
+        end_date = (today + timedelta(days=14)).strftime("%Y-%m-%d")
 
+        _LOGGER.debug(f"Norish: Lade Kalender von {start_date} bis {end_date}")
+
+        # Norish v0.16+ verwendet calendar.listItems (NICHT calendar.listRecipes!)
         c_data = await self._fetch_trpc(
-            "calendar.listRecipes", {"startISO": start_iso, "endISO": end_iso}
+            "calendar.listItems", {"startISO": start_date, "endISO": end_date}
         )
 
         if c_data:
             calendar_items = self._safe_get_trpc_result(c_data, [])
             if isinstance(calendar_items, list):
                 data["calendar"] = calendar_items
-                _LOGGER.debug(f"Kalender geladen: {len(calendar_items)} Einträge")
+                _LOGGER.info(f"Norish: {len(calendar_items)} Kalender-Einträge geladen")
             else:
-                _LOGGER.warning(
-                    f"Unerwartetes Kalender-Format: {type(calendar_items)}"
-                )
+                _LOGGER.warning(f"Unerwartetes Kalender-Format: {type(calendar_items)}")
+        else:
+            _LOGGER.warning("Norish: Keine Kalender-Daten erhalten")
+
+    async def _fetch_recipe_details_for_calendar(self, data: Dict[str, Any]) -> None:
+        """Lädt Rezept-Details für alle Kalender-Einträge."""
+        calendar_items = data.get("calendar", [])
+        
+        # Sammle unique Recipe IDs
+        recipe_ids = set()
+        for event in calendar_items:
+            recipe_id = event.get("recipeId")
+            if recipe_id:
+                recipe_ids.add(recipe_id)
+        
+        if not recipe_ids:
+            return
+            
+        _LOGGER.debug(f"Norish: Lade Details für {len(recipe_ids)} Rezepte")
+        
+        # Lade Details für jedes Rezept
+        recipe_details = {}
+        for recipe_id in recipe_ids:
+            details = await self._fetch_recipe_details(recipe_id)
+            if details:
+                recipe_details[recipe_id] = details
+        
+        # Füge Details zu Kalender-Einträgen hinzu
+        for event in calendar_items:
+            recipe_id = event.get("recipeId")
+            if recipe_id and recipe_id in recipe_details:
+                event["_recipe"] = recipe_details[recipe_id]
+
+    async def _fetch_recipe_details(self, recipe_id: str) -> Optional[Dict[str, Any]]:
+        """Lädt Details für ein einzelnes Rezept."""
+        try:
+            r_data = await self._fetch_trpc("recipes.get", {"id": recipe_id})
+            if r_data:
+                result = self._safe_get_trpc_result(r_data, None)
+                if result:
+                    _LOGGER.debug(f"Rezept geladen: {result.get('name', 'unknown')}")
+                    return result
+        except Exception as e:
+            _LOGGER.debug(f"Fehler beim Laden von Rezept {recipe_id}: {e}")
+        return None
 
     async def _fetch_groceries(self, data: Dict[str, Any]) -> None:
         """Lädt die Einkaufsliste."""
         g_data = await self._fetch_trpc("groceries.list")
-        if not g_data:
-            _LOGGER.warning("Keine Grocery-Daten erhalten")
-            return
-
-        res_json = self._safe_get_trpc_result(g_data, [])
-
-        # Flexibles Handling: manchmal Dict mit 'groceries', manchmal direkt Liste
-        items = []
-        if isinstance(res_json, dict):
-            items = res_json.get("groceries", [])
-        elif isinstance(res_json, list):
-            items = res_json
-        else:
-            _LOGGER.warning(f"Unerwartetes Grocery-Format: {type(res_json)}")
-            return
-
-        if not isinstance(items, list):
-            _LOGGER.error(f"Groceries sind keine Liste: {type(items)}")
-            return
-
-        # Items zu Stores zuordnen
-        for item in items:
-            if not isinstance(item, dict):
-                continue
-
-            store_id = item.get("storeId")
-            store_key = str(store_id) if store_id else "unsorted"
-
-            # Erstelle Store-Liste falls nicht vorhanden
-            if store_key not in data["groceries"]:
-                data["groceries"][store_key] = []
-
-            data["groceries"][store_key].append(item)
-
-        _LOGGER.debug(f"Groceries geladen: {len(items)} Artikel")
-
-    async def mutate_trpc(self, procedure: str, payload: Dict) -> bool:
-        """
-        POST-Anfrage für Änderungen mit Fehlerbehandlung.
-
-        Args:
-            procedure: tRPC Prozedurname
-            payload: Payload für die Mutation
-
-        Returns:
-            True bei Erfolg, False bei Fehler
-        """
-        url = f"{self.api_data['url']}/api/trpc/{procedure}?batch=1"
-        post_data = {"0": {"json": payload}}
         
-        # Headers aus api_data holen
-        headers = self.api_data.get("headers", {})
+        if not g_data:
+            _LOGGER.debug("Norish: Keine Grocery-Daten erhalten")
+            return
 
-        for attempt in range(MAX_RETRIES):
-            try:
-                async with self.api_data["session"].post(
-                    url, 
-                    json=post_data,
-                    headers=headers,  # Headers explizit übergeben
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as resp:
-                    if resp.status == 401:
-                        _LOGGER.error(
-                            f"Zugriff verweigert bei Mutation {procedure}. "
-                            "Prüfe API Key."
-                        )
-                        return False
+        items = self._safe_get_trpc_result(g_data, [])
+        if not isinstance(items, list):
+            _LOGGER.warning(f"Unerwartetes Grocery-Format: {type(items)}")
+            return
 
-                    if resp.status >= 500 and attempt < MAX_RETRIES - 1:
-                        delay = RETRY_DELAY_BASE * (2**attempt)
-                        _LOGGER.warning(
-                            f"Server-Fehler bei Mutation, Retry in {delay}s"
-                        )
-                        await asyncio.sleep(delay)
-                        continue
+        data["groceries"] = items
+        _LOGGER.debug(f"Norish: {len(items)} Einkaufslisten-Items geladen")
 
-                    if resp.status != 200:
-                        text = await resp.text()
-                        _LOGGER.error(
-                            f"Mutation Error {resp.status} bei {procedure}: "
-                            f"{text[:200]}"
-                        )
-                        return False
+    async def _fetch_stores(self, data: Dict[str, Any]) -> None:
+        """Lädt die Store-Liste."""
+        s_data = await self._fetch_trpc("stores.list")
+        
+        if not s_data:
+            return
 
-                    _LOGGER.debug(f"Mutation erfolgreich: {procedure}")
-                    return True
+        stores = self._safe_get_trpc_result(s_data, [])
+        if isinstance(stores, list):
+            # Erstelle Map von Store-ID zu Store-Name
+            for store in stores:
+                store_id = store.get("id")
+                store_name = store.get("name")
+                if store_id and store_name:
+                    data["stores"][store_id] = store_name
 
-            except asyncio.TimeoutError:
-                if attempt < MAX_RETRIES - 1:
-                    await asyncio.sleep(RETRY_DELAY_BASE * (2**attempt))
-                    continue
-                _LOGGER.error(f"Timeout bei Mutation {procedure}")
-                return False
+    async def _download_and_cache_images(self, data: Dict[str, Any]) -> None:
+        """Lädt Bilder herunter und cached sie lokal."""
+        calendar_items = data.get("calendar", [])
+        base_url = self.api_data.get("url", "").rstrip("/")
+        
+        for event in calendar_items:
+            recipe_details = event.get("_recipe", {})
+            if not recipe_details:
+                continue
+            
+            # Hole Bild-URL aus Rezept-Details
+            image_path = recipe_details.get("image") or recipe_details.get("imageUrl")
+            if not image_path:
+                continue
+            
+            # Erstelle vollständige URL falls relativ
+            if image_path.startswith("/"):
+                image_url = f"{base_url}{image_path}"
+            else:
+                image_url = image_path
+            
+            # Cache das Bild lokal
+            local_path = await self._cache_image(image_url, event.get("recipeId", "unknown"))
+            if local_path:
+                # Speichere den lokalen Pfad im Event
+                event["_local_image"] = local_path
 
-            except aiohttp.ClientError as e:
-                if attempt < MAX_RETRIES - 1:
-                    await asyncio.sleep(RETRY_DELAY_BASE * (2**attempt))
-                    continue
-                _LOGGER.error(f"Mutation fehlgeschlagen: {e}")
-                return False
-
-            except Exception as e:
-                _LOGGER.exception(f"Unerwarteter Fehler bei Mutation: {e}")
-                return False
-
-        return False
+    async def _cache_image(self, image_url: str, recipe_id: str) -> Optional[str]:
+        """Lädt ein Bild herunter und cached es lokal. Gibt den lokalen URL-Pfad zurück."""
+        try:
+            # Erstelle einen eindeutigen Dateinamen basierend auf der URL
+            url_hash = hashlib.md5(image_url.encode()).hexdigest()[:12]
+            filename = f"{recipe_id}_{url_hash}.jpg"
+            local_file_path = os.path.join(self._image_cache_path, filename)
+            
+            # Prüfe ob Bild bereits gecached ist
+            if os.path.exists(local_file_path):
+                return f"/local/norish_images/{filename}"
+            
+            # Lade Bild herunter
+            headers = self.api_data.get("headers", {})
+            session = self.api_data.get("session")
+            
+            async with session.get(image_url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                if resp.status != 200:
+                    _LOGGER.debug(f"Konnte Bild nicht laden: {image_url} (Status {resp.status})")
+                    return None
+                
+                image_data = await resp.read()
+                
+                # Speichere Bild lokal
+                with open(local_file_path, 'wb') as f:
+                    f.write(image_data)
+                
+                _LOGGER.debug(f"Bild gecached: {filename}")
+                return f"/local/norish_images/{filename}"
+                
+        except Exception as e:
+            _LOGGER.debug(f"Fehler beim Cachen des Bildes {image_url}: {e}")
+            return None

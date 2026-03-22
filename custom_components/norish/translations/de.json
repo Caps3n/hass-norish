@@ -2,81 +2,18 @@
   "config": {
     "step": {
       "user": {
-        "title": "Norish einrichten",
-        "description": "Geben Sie die URL Ihrer Norish-Instanz und Ihren API-Schlüssel ein.",
+        "title": "Norish verbinden",
+        "description": "Gib die URL und den API-Key deiner Norish-Instanz ein.",
         "data": {
-          "url": "Server URL",
-          "api_key": "API-Schlüssel"
+          "url": "Norish URL",
+          "api_key": "API Key"
         }
       }
     },
     "error": {
-      "cannot_connect": "Verbindung fehlgeschlagen. Bitte prüfen Sie die URL und Ihre Netzwerkverbindung.",
-      "invalid_auth": "Ungültiger API-Schlüssel. Bitte prüfen Sie Ihre Zugangsdaten.",
-      "unknown": "Ein unerwarteter Fehler ist aufgetreten."
-    },
-    "abort": {
-      "already_configured": "Diese Norish-Instanz ist bereits konfiguriert."
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Norish Optionen",
-        "description": "Wählen Sie, welche Mahlzeiten-Typen angezeigt werden sollen.",
-        "data": {
-          "show_breakfast": "Frühstück anzeigen",
-          "show_lunch": "Mittagessen anzeigen",
-          "show_dinner": "Abendessen anzeigen",
-          "show_snack": "Snacks anzeigen"
-        }
-      }
-    }
-  },
-  "entity": {
-    "sensor": {
-      "meals_today": {
-        "name": "Mahlzeiten Heute",
-        "state": {
-          "no_plan": "Kein Plan"
-        }
-      },
-      "meal_breakfast": {
-        "name": "Frühstück"
-      },
-      "meal_lunch": {
-        "name": "Mittagessen"
-      },
-      "meal_dinner": {
-        "name": "Abendessen"
-      },
-      "meal_snack": {
-        "name": "Snack"
-      }
-    },
-    "calendar": {
-      "meal_plan": {
-        "name": "Speiseplan"
-      }
-    },
-    "todo": {
-      "grocery_list": {
-        "name": "Einkaufsliste"
-      }
-    },
-    "camera": {
-      "breakfast_image": {
-        "name": "Frühstück Bild"
-      },
-      "lunch_image": {
-        "name": "Mittagessen Bild"
-      },
-      "dinner_image": {
-        "name": "Abendessen Bild"
-      },
-      "snack_image": {
-        "name": "Snack Bild"
-      }
+      "cannot_connect": "Verbindung fehlgeschlagen. Prüfe die URL.",
+      "invalid_auth": "Ungültiger API Key.",
+      "unknown": "Unbekannter Fehler"
     }
   }
 }

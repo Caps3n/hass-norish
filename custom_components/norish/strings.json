@@ -2,35 +2,18 @@
   "config": {
     "step": {
       "user": {
-        "title": "Set up Norish",
-        "description": "Enter the URL of your Norish instance and your API key.",
+        "title": "Norish verbinden",
+        "description": "Gib die URL und den API-Key deiner Norish-Instanz ein.",
         "data": {
-          "url": "Server URL",
+          "url": "Norish URL",
           "api_key": "API Key"
         }
       }
     },
     "error": {
-      "cannot_connect": "Connection failed. Please check the URL and your network connection.",
-      "invalid_auth": "Invalid API key. Please check your credentials.",
-      "unknown": "An unexpected error occurred."
-    },
-    "abort": {
-      "already_configured": "This Norish instance is already configured."
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Norish Options",
-        "description": "Choose which meal types should be displayed.",
-        "data": {
-          "show_breakfast": "Show breakfast",
-          "show_lunch": "Show lunch",
-          "show_dinner": "Show dinner",
-          "show_snack": "Show snacks"
-        }
-      }
+      "cannot_connect": "Verbindung fehlgeschlagen. Prüfe die URL.",
+      "invalid_auth": "Ungültiger API Key.",
+      "unknown": "Unbekannter Fehler"
     }
   }
 }
