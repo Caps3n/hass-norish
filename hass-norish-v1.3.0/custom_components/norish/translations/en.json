@@ -1,0 +1,19 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect Norish",
+        "description": "Enter the URL and API key of your Norish instance.",
+        "data": {
+          "url": "Norish URL",
+          "api_key": "API Key"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Connection failed. Check the URL.",
+      "invalid_auth": "Invalid API key.",
+      "unknown": "Unknown error"
+    }
+  }
+}
