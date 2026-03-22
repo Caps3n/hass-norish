@@ -31,13 +31,6 @@ Complete Home Assistant integration for [Norish](https://github.com/norish-recip
 - Create, update, and delete items
 - Quantities and units support
 
-### 🎥 Video Support
-- **YouTube** - automatic ID extraction + embed URLs
-- **Vimeo** - automatic detection
-- **Direct videos** - MP4, WebM, etc.
-- **Loop videos** - autoplay, muted, continuous playback (like Norish app)
-- Automatic thumbnail extraction
-
 ### 📷 Camera Entities (Optional)
 - Alternative image display using camera platform
 - Cached image loading
