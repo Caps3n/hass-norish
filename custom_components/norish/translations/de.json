@@ -11,9 +11,12 @@
       }
     },
     "error": {
-      "cannot_connect": "Verbindung fehlgeschlagen. Prüfe die URL.",
+      "cannot_connect": "Verbindung fehlgeschlagen. Bitte URL prüfen.",
       "invalid_auth": "Ungültiger API Key.",
-      "unknown": "Unbekannter Fehler"
+      "unknown": "Unbekannter Fehler."
+    },
+    "abort": {
+      "already_configured": "Norish ist bereits konfiguriert."
     }
   }
 }

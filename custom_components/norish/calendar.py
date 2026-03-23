@@ -51,9 +51,8 @@ class NorishCalendar(CoordinatorEntity, CalendarEntity):
     @property
     def event(self) -> CalendarEvent | None:
         """Return the next upcoming event."""
-        events = self._get_events_for_range(
-            dt_util.now(), dt_util.now() + timedelta(days=1)
-        )
+        now = dt_util.now()
+        events = self._get_events_for_range(now, now + timedelta(days=1))
         return events[0] if events else None
 
     async def async_get_events(
@@ -68,13 +67,18 @@ class NorishCalendar(CoordinatorEntity, CalendarEntity):
     def _get_events_for_range(
         self, start_date: datetime, end_date: datetime
     ) -> list[CalendarEvent]:
-        """Get events for a date range."""
+        """Get events for a date range, returning timezone-aware CalendarEvents."""
         events: list[CalendarEvent] = []
 
         if not self.coordinator.data:
             return events
 
+        # Use HA's local timezone for all datetime operations
+        local_tz = dt_util.get_time_zone(self.hass.config.time_zone)
+
         calendar_data: list[dict] = self.coordinator.data.get("calendar", [])
+
+        # Normalise boundaries to dates for comparison
         start_date_only = start_date.date() if hasattr(start_date, "date") else start_date
         end_date_only = end_date.date() if hasattr(end_date, "date") else end_date
 
@@ -89,6 +93,7 @@ class NorishCalendar(CoordinatorEntity, CalendarEntity):
                 if not (start_date_only <= event_date <= end_date_only):
                     continue
 
+                # Resolve display name
                 name: str = item.get("recipeName") or "Meal"
                 recipe_details: dict = item.get("_recipe") or {}
                 if recipe_details.get("name"):
@@ -97,9 +102,15 @@ class NorishCalendar(CoordinatorEntity, CalendarEntity):
                 slot: str = item.get("slot") or "Meal"
                 hour, minute = SLOT_TIMES.get(slot, (12, 0))
 
-                start_dt = datetime.combine(
-                    event_date,
-                    datetime.min.time().replace(hour=hour, minute=minute),
+                # Build timezone-aware start/end datetimes
+                start_dt = datetime(
+                    event_date.year,
+                    event_date.month,
+                    event_date.day,
+                    hour,
+                    minute,
+                    0,
+                    tzinfo=local_tz,
                 )
                 end_dt = start_dt + timedelta(hours=1)
 
