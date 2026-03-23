@@ -1,6 +1,6 @@
 # Norish Home Assistant Integration
 
-[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/Caps3n/hass-norish/releases)
+[![Version](https://img.shields.io/github/v/release/Caps3n/hass-norish?label=version&color=blue)](https://github.com/Caps3n/hass-norish/releases)
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![HA Version](https://img.shields.io/badge/Home%20Assistant-2024.6%2B-blue.svg)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
