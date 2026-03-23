@@ -1,14 +1,16 @@
-"""Norish Integration für Home Assistant."""
+"""Norish Home Assistant Integration."""
+from __future__ import annotations
+
 import logging
 from typing import Any
 
-from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_URL, CONF_API_KEY
+from homeassistant.const import CONF_API_KEY, CONF_URL
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DOMAIN, DEFAULT_URL
+from .const import DEFAULT_URL, DOMAIN
 from .coordinator import NorishListCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,11 +29,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "x-api-key": api_key,
     }
 
-    session = async_get_clientsession(hass)
-
     api_data: dict[str, Any] = {
         "url": base_url,
-        "session": session,
+        "session": async_get_clientsession(hass),
         "headers": headers,
     }
 
@@ -39,12 +39,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     try:
         await coordinator.async_config_entry_first_refresh()
-        _LOGGER.info("Norish Integration erfolgreich geladen")
+        _LOGGER.info("Norish integration loaded successfully")
     except ConfigEntryNotReady:
         raise
     except Exception as err:  # noqa: BLE001
         _LOGGER.warning(
-            "Norish: Erster Datenabruf fehlgeschlagen (%s) – Integration wird trotzdem geladen",
+            "Norish: initial data fetch failed (%s) – loading integration anyway",
             err,
         )
 
@@ -52,7 +52,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
     return True

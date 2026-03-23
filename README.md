@@ -1,126 +1,150 @@
 # Norish Home Assistant Integration
 
-[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/Caps3n/hass-norish/releases)
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/Caps3n/hass-norish/releases)
+[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![HA Version](https://img.shields.io/badge/Home%20Assistant-2024.6%2B-blue.svg)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Validate](https://github.com/Caps3n/hass-norish/actions/workflows/validate.yaml/badge.svg)](https://github.com/Caps3n/hass-norish/actions/workflows/validate.yaml)
 
-Complete Home Assistant integration for [Norish](https://github.com/norish-recipes/norish) - the open-source recipe and meal planning system.
+A full-featured Home Assistant integration for [Norish](https://github.com/norish-recipes/norish) — the open-source recipe and meal planning app.
+
+> Connects your Norish instance to Home Assistant, giving you meal sensors, a shopping list, a calendar, recipe images, and video support — all in one integration.
+
+---
 
 ## ✨ Features
 
 ### 🍳 Meal Sensors
-- **5 sensors** for different meal types (All, Breakfast, Lunch, Dinner, Snack)
-- Automatic **image display** from recipes
-- **Video support** with autoplay, loop, and muted playback
-- Recipe metadata: cooking time, servings, description
+- **6 sensors**: All meals today, Breakfast, Lunch, Dinner, Snack, Week Planner
+- Automatic **recipe image** display via `entity_picture`
+- **Video support** — autoplay, loop, muted (just like in the Norish app)
+- Attributes include recipe name, type, image URL, and recipe ID
 
-### 📅 Week Planner
-- **7-day overview** sensor with all meals
-- Displays images and videos for each day
+### 📅 Week Planner Sensor
+- 7-day overview of all planned meals
+- Per-day attributes: `mo`, `tu`, `we`, `th`, `fr`, `sa`, `su`
 - Highlights today and weekends
-- German weekday names
-- Access individual days via attributes (mo, di, mi, do, fr, sa, so)
+- Sorted by meal type (Breakfast → Lunch → Dinner → Snack)
 
-### 📆 Calendar Integration
-- Weekly meal calendar
-- Different meal types with custom times
-- Full event details
+### 📆 Calendar
+- Native Home Assistant calendar entity
+- One event per meal with correct time slots
+- Full date-range support
 
-### 🛒 Shopping Lists
-- Todo lists organized by store
-- Create, update, and delete items
-- Quantities and units support
+### 🛒 Shopping List
+- Native Home Assistant Todo list entity
+- Displays items with quantity and unit
+- Create, update, and delete support
 
-### 📷 Camera Entities (Optional)
-- Alternative image display using camera platform
-- Cached image loading
+### 📷 Camera Entities
+- One camera entity per meal type (Breakfast, Lunch, Dinner, Snack)
+- Locally cached images for fast display
+- Fallback to remote image if cache is empty
+
+### 🎬 Media Player Entities
+- One media player per meal type
+- Shows recipe video when available
+- Compatible with dashboard `media-player` cards
 
 ### 🌍 Multilingual
-- **5 languages**: German, English, French, Spanish, Italian
-- Automatic language detection
-- Translations for UI, entities, error messages
+- 5 languages: 🇩🇪 German · 🇬🇧 English · 🇫🇷 French · 🇪🇸 Spanish · 🇮🇹 Italian
+
+---
 
 ## 📸 Screenshots
 
-### Week Planner 
+### Week Planner
 ![Week Planner](https://github.com/Caps3n/hass-norish/blob/main/images/week_planner.png?raw=true)
 
+### Calendar
+![Calendar](https://github.com/Caps3n/hass-norish/blob/main/images/calendar.png?raw=true)
+
+### Todo / Shopping List
+![Shopping List](https://github.com/Caps3n/hass-norish/blob/main/images/todo.png?raw=true)
+
+---
 
 ## 🚀 Installation
 
 ### Option 1: HACS (Recommended)
 
-1. Open HACS in Home Assistant
+1. Open **HACS** in Home Assistant
 2. Go to **Integrations**
-3. Click the **three dots** (⋮) in the top right
-4. Select **Custom repositories**
-5. Add repository: `https://github.com/Caps3n/hass-norish`
-6. Category: `Integration`
-7. Click **Add**
-8. Search for "Norish" in HACS
-9. Click **Install**
-10. Restart Home Assistant
+3. Click the **⋮ menu** (top right) → **Custom repositories**
+4. Add: `https://github.com/Caps3n/hass-norish` → Category: `Integration`
+5. Search for **"Norish"** and click **Install**
+6. Restart Home Assistant
 
-### Option 2: Manual Installation
+### Option 2: Manual
 
-1. Download the latest release from [GitHub Releases](https://github.com/Caps3n/hass-norish/releases)
-2. Extract the `norish` folder to your `custom_components` directory
+1. Download the [latest release](https://github.com/Caps3n/hass-norish/releases)
+2. Copy the `norish` folder into your `config/custom_components/` directory
 3. Restart Home Assistant
+
+---
 
 ## ⚙️ Configuration
 
-1. Go to **Settings** → **Devices & Services**
+1. Go to **Settings → Devices & Services**
 2. Click **+ Add Integration**
-3. Search for "Norish"
-4. Enter your configuration:
-   - **Server URL**: e.g., `https://norish.yourdomain.com`
-   - **API Key**: Your Norish API key
+3. Search for **"Norish"**
+4. Enter:
+   - **Server URL** — e.g. `https://norish.yourdomain.com`
+   - **API Key** — your Norish API key
 5. Click **Submit**
 
-### Options
-
-After installation, configure which meal types to display:
-- ☑ Show breakfast
-- ☑ Show lunch
-- ☑ Show dinner
-- ☑ Show snacks
+---
 
 ## 📊 Entities
 
 ### Sensors
 
-- `sensor.norish_meals_today` - All meals for today
-- `sensor.norish_breakfast` - Breakfast
-- `sensor.norish_lunch` - Lunch
-- `sensor.norish_dinner` - Dinner
-- `sensor.norish_snack` - Snacks
-- `sensor.norish_wochenplan` - 7-day week planner
+| Entity | Description |
+|--------|-------------|
+| `sensor.norish_meals_today` | All meals for today |
+| `sensor.norish_breakfast` | Today's breakfast |
+| `sensor.norish_lunch` | Today's lunch |
+| `sensor.norish_dinner` | Today's dinner |
+| `sensor.norish_snack` | Today's snack |
+| `sensor.norish_week_planner` | 7-day meal overview |
 
-Each sensor includes:
-- Current meal name as state
-- Recipe image (if available)
-- Video URL (if available)
-- Cooking time, servings, description
+Each sensor includes: meal name (state), `image_url`, `recipe_id`, `meal_count`, `meals`, `raw_data`.
 
 ### Calendar
 
-- `calendar.norish_meal_plan` - Weekly meal calendar
+| Entity | Description |
+|--------|-------------|
+| `calendar.norish_meal_plan` | Weekly meal calendar |
 
-### Todo Lists
+### Todo
 
-- `todo.norish_unsorted` - Unsorted grocery items
-- `todo.norish_<store_name>` - Grocery list per store
+| Entity | Description |
+|--------|-------------|
+| `todo.norish_shopping_list` | Grocery / shopping list |
 
-### Cameras (Optional)
+### Cameras
 
-- `camera.norish_breakfast_image` - Breakfast recipe image
-- `camera.norish_lunch_image` - Lunch recipe image
-- `camera.norish_dinner_image` - Dinner recipe image
-- `camera.norish_snack_image` - Snack recipe image
+| Entity | Description |
+|--------|-------------|
+| `camera.norish_breakfast_image` | Breakfast recipe image |
+| `camera.norish_lunch_image` | Lunch recipe image |
+| `camera.norish_dinner_image` | Dinner recipe image |
+| `camera.norish_snack_image` | Snack recipe image |
+
+### Media Players
+
+| Entity | Description |
+|--------|-------------|
+| `media_player.norish_breakfast_video` | Breakfast recipe video |
+| `media_player.norish_lunch_video` | Lunch recipe video |
+| `media_player.norish_dinner_video` | Dinner recipe video |
+| `media_player.norish_snack_video` | Snack recipe video |
+
+---
 
 ## 🎨 Dashboard Examples
 
-### Simple Picture Entity Card
+### Simple image card
 
 ```yaml
 type: picture-entity
@@ -129,18 +153,18 @@ show_name: true
 show_state: true
 ```
 
-### Loop Video (Norish Style)
+### Looping video (Norish style)
 
 ```yaml
 type: markdown
 content: |
-  <video autoplay loop muted playsinline 
-         style="width: 100%; height: 400px; object-fit: cover; border-radius: 12px;">
-    <source src="{{ state_attr('sensor.norish_lunch', 'video_url') }}" type="video/mp4">
+  <video autoplay loop muted playsinline
+         style="width:100%;height:400px;object-fit:cover;border-radius:12px;">
+    <source src="{{ state_attr('sensor.norish_lunch', 'raw_data')[0]['image'] }}" type="video/mp4">
   </video>
 ```
 
-### Week Planner Grid
+### 2×2 meal grid
 
 ```yaml
 type: grid
@@ -156,158 +180,78 @@ cards:
     entity: sensor.norish_snack
 ```
 
-### Complete Week Overview
+### Week overview (with today highlight)
 
 ```yaml
 type: markdown
 content: |
-  {% set week = state_attr('sensor.norish_wochenplan', 'week_data') %}
+  {% set week = state_attr('sensor.norish_week_planner', 'week_data') %}
   {% for day in week %}
-    <div style="background: {% if day.is_today %}#ff6b6b{% else %}#2a2a2a{% endif %}; 
-                border-radius: 8px; padding: 15px; margin: 10px 0;">
-      <strong style="color: white;">{{ day.weekday }} • {{ day.date_formatted }}</strong>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 5px; margin-top: 10px;">
-      {% for meal in day.meals %}
-        <div style="position: relative; height: 80px; border-radius: 6px; overflow: hidden;">
-          {% if meal.video %}
-            <video autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;">
-              <source src="{{ meal.video }}" type="video/mp4">
-            </video>
-          {% elif meal.image %}
-            <img src="{{ meal.image }}" style="width: 100%; height: 100%; object-fit: cover;">
-          {% endif %}
-        </div>
-      {% endfor %}
+  <div style="background:{% if day.is_today %}#1e3a5f{% else %}#1c1c1c{% endif %};
+              border-radius:10px;padding:12px;margin:6px 0;">
+    <strong style="color:white;">{{ day.weekday }} · {{ day.date_formatted }}</strong>
+    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+    {% for meal in day.meals %}
+      <div style="flex:1;min-width:80px;height:70px;border-radius:6px;overflow:hidden;position:relative;">
+        {% if meal.image %}
+          <img src="{{ meal.image }}" style="width:100%;height:100%;object-fit:cover;">
+        {% endif %}
+        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.5);
+                    color:white;font-size:10px;padding:2px 4px;">{{ meal.type }}</div>
       </div>
+    {% endfor %}
     </div>
+  </div>
   {% endfor %}
 ```
 
-More examples in [DASHBOARD_EXAMPLES.yaml](DASHBOARD_EXAMPLES.yaml)
+More examples in [DASHBOARD_BEISPIELE.yaml](DASHBOARD_BEISPIELE.yaml)
 
-## 📡 API Requirements
+---
 
-### Calendar Endpoint
-
-Your Norish API must return data in this format:
-
-```json
-{
-  "date": "2026-01-29T00:00:00.000Z",
-  "type": "LUNCH",
-  "recipe": {
-    "id": "123",
-    "name": "Spaghetti Carbonara",
-    "image": "https://example.com/images/carbonara.jpg",
-    "video": "/recipes/ff8d4877.../video.mp4",
-    "description": "Classic Italian pasta dish",
-    "cookingTime": 30,
-    "servings": 4
-  }
-}
-```
-
-**Supported field names:**
-- Images: `image`, `imageUrl`, `picture`, `photo`, `thumbnail`
-- Videos: `video`, `videoUrl`, `video_url`, `youtubeUrl`, `youtube_url`
-- Video thumbnails: `videoThumbnail`, `video_thumbnail`
-
-**Relative URLs** (like `/recipes/...`) are automatically converted to absolute URLs.
-
-### Groceries Endpoint
-
-```json
-{
-  "id": "456",
-  "name": "Tomatoes",
-  "amount": 2,
-  "unit": "kg",
-  "isDone": false,
-  "storeId": "1"
-}
-```
-
-## 🎬 Video Features
-
-### Supported Formats
-
-- ✅ **YouTube** - Automatic ID extraction, embed URLs, thumbnails
-- ✅ **Vimeo** - Automatic detection
-- ✅ **Direct URLs** - MP4, WebM, etc.
-- ✅ **Loop playback** - Autoplay, muted, continuous (like Norish app)
-
-### Video Attributes
+## 🗓️ Week Planner Attributes
 
 ```yaml
-sensor.norish_lunch:
-  attributes:
-    video_url: "https://youtube.com/watch?v=..."
-    video_type: "youtube"
-    youtube_id: "ABC123"
-    youtube_embed_url: "https://youtube.com/embed/ABC123"
-    video_thumbnail: "https://..."
-    has_video: true
-```
-
-See [VIDEO_SUPPORT.md](VIDEO_SUPPORT.md) for detailed documentation.
-
-## 🗓️ Week Planner
-
-The week planner sensor provides a 7-day overview:
-
-```yaml
-sensor.norish_wochenplan:
+sensor.norish_week_planner:
   state: "5 days planned"
   attributes:
     days_planned: 5
-    total_meals: 15
-    
-    # Individual day access
-    mo:  # Monday
-      date: "2026-01-29"
-      weekday: "Montag"
+    total_meals: 14
+
+    mo:
+      date: "2026-03-23"
+      weekday: "Monday"
       is_today: true
+      is_weekend: false
       meals:
         - name: "Oatmeal"
           type: "BREAKFAST"
-          image: "https://..."
-          video: "https://..."
-    
-    di:  # Tuesday
-    mi:  # Wednesday
-    do:  # Thursday
-    fr:  # Friday
-    sa:  # Saturday
-    so:  # Sunday
-    
-    # Complete week data
+          image: "/local/norish_images/..."
+          recipe_id: "abc123"
+      meal_count: 1
+      has_meals: true
+
+    tu: { ... }
+    we: { ... }
+    # ...
     week_data: [...]
 ```
 
-See [WOCHENPLAN_DASHBOARDS.md](WOCHENPLAN_DASHBOARDS.md) for dashboard examples.
+---
 
 ## 🔧 Troubleshooting
 
-### No images displayed
+**No images displayed**
+- Check if your Norish instance returns image URLs
+- Verify the images are accessible from your Home Assistant host
+- Check logs: `grep -i norish /config/home-assistant.log`
 
-1. Check if your API returns image URLs
-2. Verify image URLs are accessible
-3. Check logs: `grep -i norish /config/home-assistant.log`
+**Connection error on setup**
+- Confirm the Server URL is reachable from Home Assistant
+- Verify your API key is correct
+- Check firewall / reverse proxy settings
 
-### Videos not playing
-
-1. Ensure `muted` attribute is set (required for autoplay)
-2. Check if video URL is accessible
-3. For relative URLs: verify base URL is correct
-
-### Connection errors
-
-1. Verify server URL is correct
-2. Check API key
-3. Ensure Home Assistant can reach your Norish server
-4. Check firewall rules
-
-### Enable debug logging
+**Enable debug logging**
 
 Add to `configuration.yaml`:
 
@@ -318,44 +262,47 @@ logger:
     custom_components.norish: debug
 ```
 
-## 🆕 What's New in v1.3.0
+---
 
-### Added
-- 📅 **Week Planner Sensor** - 7-day overview with images/videos
-- 🎥 **Loop Video Support** - Videos play like in Norish app
-- 🔄 **Automatic URL Conversion** - Relative URLs converted to absolute
-- 🎨 **Week Dashboard Templates** - Multiple layout options
-- 📊 **Week Statistics** - Days planned, total meals, video/image counts
+## 🆕 What's New in v1.4.0
 
-### Changed
-- Sensor setup extended with week planner
-- Calendar data evaluated for 7 days
-- Improved date processing
+- **GitHub Actions CI** — automatic HACS and hassfest validation on every push
+- **HA 2024.6+ compatibility** — modern type annotations, proper `async_setup_entry` signatures
+- **Non-blocking I/O** — image caching now runs in an executor (no more event loop blocking)
+- **`codeowners`** set in `manifest.json` (required for HACS default repository)
+- **`integration_type: service`** added to `manifest.json`
+- Code quality improvements across all platform files
 
-See [CHANGELOG.md](CHANGELOG.md) for complete version history.
+See [CHANGELOG.md](CHANGELOG.md) for the full version history.
+
+---
 
 ## 📚 Documentation
 
-- [VIDEO_SUPPORT.md](VIDEO_SUPPORT.md) - Video integration guide
-- [LOOP_VIDEOS.md](LOOP_VIDEOS.md) - Loop video implementation
-- [WOCHENPLAN_DASHBOARDS.md](WOCHENPLAN_DASHBOARDS.md) - Week planner dashboards
-- [DASHBOARD_EXAMPLES.yaml](DASHBOARD_EXAMPLES.yaml) - Dashboard templates
-- [CHANGELOG.md](CHANGELOG.md) - Version history
-- [INSTALLATION.md](INSTALLATION.md) - Detailed installation guide
+- [CHANGELOG.md](CHANGELOG.md) — Version history
+- [INSTALLATION.md](INSTALLATION.md) — Detailed installation guide
+- [DASHBOARD_BEISPIELE.yaml](DASHBOARD_BEISPIELE.yaml) — Dashboard templates
+- [WOCHENPLAN_DASHBOARDS.md](WOCHENPLAN_DASHBOARDS.md) — Week planner dashboard examples
+- [VIDEO_SUPPORT.md](VIDEO_SUPPORT.md) — Video integration guide
+
+---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please:
+Contributions are welcome!
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Commit your changes
+4. Open a pull request
+
+---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License — see [LICENSE](LICENSE) for details.
+
+---
 
 ## 🙏 Credits
 
@@ -365,13 +312,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔗 Links
 
-- [Norish Repository](https://github.com/norish-recipes/norish)
+- [Norish App](https://github.com/norish-recipes/norish)
 - [Home Assistant](https://www.home-assistant.io/)
 - [HACS](https://hacs.xyz/)
 - [Report a Bug](https://github.com/Caps3n/hass-norish/issues)
 - [Request a Feature](https://github.com/Caps3n/hass-norish/issues)
-- [Discussions](https://github.com/Caps3n/hass-norish/discussions)
-
----
-
-Made with ❤️ for the Home Assistant community
