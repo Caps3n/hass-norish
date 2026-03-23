@@ -64,6 +64,64 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.warning("Failed to extract tRPC result: %s", err)
             return default
 
+    async def async_toggle_grocery(
+        self, grocery_id: str, is_done: bool
+    ) -> bool:
+        """Toggle a grocery item's done state in Norish.
+
+        Calls groceries.toggle via POST and refreshes coordinator data.
+        Returns True on success, False on failure.
+        """
+        payload: dict[str, Any] = {"groceryIds": [grocery_id], "isDone": is_done}
+        result = await self._post_trpc("groceries.toggle", payload)
+        if result is None:
+            _LOGGER.error(
+                "Norish: failed to toggle grocery %s (isDone=%s)", grocery_id, is_done
+            )
+            return False
+        _LOGGER.debug(
+            "Norish: toggled grocery %s → isDone=%s", grocery_id, is_done
+        )
+        await self.async_request_refresh()
+        return True
+
+    async def _post_trpc(
+        self,
+        procedure: str,
+        payload: dict[str, Any],
+    ) -> list[Any] | None:
+        """POST a mutation to a tRPC endpoint."""
+        url = f"{self.api_data['url']}/api/trpc/{procedure}?batch=1"
+        headers: dict[str, str] = {
+            **self.api_data.get("headers", {}),
+            "Content-Type": "application/json",
+        }
+        body = json.dumps({"0": {"json": payload}})
+
+        try:
+            async with self.api_data["session"].post(
+                url,
+                headers=headers,
+                data=body,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                if resp.status not in (200, 201):
+                    text = await resp.text()
+                    _LOGGER.error(
+                        "Norish: POST %s failed with status %s: %s",
+                        procedure,
+                        resp.status,
+                        text[:200],
+                    )
+                    return None
+                return await resp.json()  # type: ignore[no-any-return]
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Norish: POST %s network error: %s", procedure, err)
+            return None
+        except asyncio.TimeoutError:
+            _LOGGER.error("Norish: POST %s timed out", procedure)
+            return None
+
     async def _fetch_trpc(
         self,
         procedure: str,
@@ -295,7 +353,16 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return
 
         data["groceries"] = items
-        _LOGGER.debug("Norish: loaded %d grocery items", len(items))
+
+        # Also store recurring groceries (shown as separate items in HA)
+        recurring = result.get("recurringGroceries", []) if isinstance(result, dict) else []
+        data["recurring_groceries"] = recurring if isinstance(recurring, list) else []
+
+        _LOGGER.debug(
+            "Norish: loaded %d grocery items, %d recurring",
+            len(items),
+            len(data["recurring_groceries"]),
+        )
 
     async def _fetch_stores(self, data: dict[str, Any]) -> None:
         """Fetch the store list."""

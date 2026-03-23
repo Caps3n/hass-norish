@@ -30,8 +30,35 @@ async def async_setup_entry(
     async_add_entities([NorishShoppingList(coordinator, entry)])
 
 
+def _grocery_to_todo_item(grocery: dict) -> TodoItem:
+    """Convert a Norish grocery dict to a HA TodoItem."""
+    item_id: str = grocery.get("id", "")
+    name: str = grocery.get("name") or grocery.get("ingredient") or "Unknown"
+    is_done: bool = (
+        grocery.get("isDone", False)
+        or grocery.get("checked", False)
+        or grocery.get("completed", False)
+    )
+    amount = grocery.get("amount") or grocery.get("quantity", "")
+    unit: str = grocery.get("unit", "")
+
+    # Build summary: "250g Risoni (Orzo)" style
+    if amount and unit:
+        summary = f"{amount}{unit} {name}"
+    elif amount:
+        summary = f"{amount}× {name}"
+    else:
+        summary = name
+
+    return TodoItem(
+        uid=item_id,
+        summary=summary,
+        status=TodoItemStatus.COMPLETED if is_done else TodoItemStatus.NEEDS_ACTION,
+    )
+
+
 class NorishShoppingList(CoordinatorEntity, TodoListEntity):
-    """Norish Shopping List entity."""
+    """Norish Shopping List entity — syncs check/uncheck back to Norish."""
 
     def __init__(
         self,
@@ -51,47 +78,34 @@ class NorishShoppingList(CoordinatorEntity, TodoListEntity):
 
     @property
     def todo_items(self) -> list[TodoItem]:
-        """Return the current list of todo items."""
-        items: list[TodoItem] = []
+        """Return all grocery items (regular + recurring)."""
         if not self.coordinator.data:
-            return items
+            return []
 
         groceries: list[dict] = self.coordinator.data.get("groceries", [])
+        recurring: list[dict] = self.coordinator.data.get("recurring_groceries", [])
 
-        for grocery in groceries:
-            item_id: str = grocery.get("id", "")
-            name: str = grocery.get("name") or grocery.get("ingredient") or "Unknown"
-            checked: bool = (
-                grocery.get("isDone", False)
-                or grocery.get("checked", False)
-                or grocery.get("completed", False)
-            )
-            amount: str = grocery.get("amount") or grocery.get("quantity", "")
-            unit: str = grocery.get("unit", "")
-
-            summary = f"{name} ({amount} {unit})".strip() if amount or unit else name
-
-            items.append(
-                TodoItem(
-                    uid=item_id,
-                    summary=summary,
-                    status=TodoItemStatus.COMPLETED if checked else TodoItemStatus.NEEDS_ACTION,
-                )
-            )
-
+        items = [_grocery_to_todo_item(g) for g in groceries]
+        items += [_grocery_to_todo_item(g) for g in recurring]
         return items
 
-    async def async_create_todo_item(self, item: TodoItem) -> None:
-        """Create a new todo item (triggers data refresh)."""
-        _LOGGER.info("Create todo item requested: %s", item.summary)
-        await self.coordinator.async_request_refresh()
-
     async def async_update_todo_item(self, item: TodoItem) -> None:
-        """Update a todo item (triggers data refresh)."""
-        _LOGGER.info("Update todo item requested: %s", item.uid)
+        """Toggle item done/undone — syncs back to Norish."""
+        is_done = item.status == TodoItemStatus.COMPLETED
+        _LOGGER.debug(
+            "Norish: update todo item %s → isDone=%s", item.uid, is_done
+        )
+        if item.uid:
+            await self.coordinator.async_toggle_grocery(item.uid, is_done)
+        else:
+            await self.coordinator.async_request_refresh()
+
+    async def async_create_todo_item(self, item: TodoItem) -> None:
+        """Create a new todo item (refresh only — creation not yet supported)."""
+        _LOGGER.info("Norish: create todo item requested: %s (not supported)", item.summary)
         await self.coordinator.async_request_refresh()
 
     async def async_delete_todo_items(self, uids: list[str]) -> None:
-        """Delete todo items (triggers data refresh)."""
-        _LOGGER.info("Delete todo items requested: %s", uids)
+        """Delete todo items (refresh only — deletion not yet supported)."""
+        _LOGGER.info("Norish: delete todo items requested: %s (not supported)", uids)
         await self.coordinator.async_request_refresh()
