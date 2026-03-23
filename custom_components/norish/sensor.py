@@ -1,20 +1,31 @@
 """Sensor für Norish Mahlzeiten - Norish v0.16+ API."""
+from __future__ import annotations
+
 import logging
 from datetime import timedelta
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 from homeassistant.components.sensor import SensorEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
+
 from .const import DOMAIN
+from .coordinator import NorishListCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
     """Setup sensor entities."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
-    
+    coordinator: NorishListCoordinator = hass.data[DOMAIN][entry.entry_id]
+
     sensors = [
         NorishMealSensor(coordinator, entry, "all"),
         NorishMealSensor(coordinator, entry, "breakfast"),

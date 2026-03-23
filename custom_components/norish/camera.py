@@ -1,20 +1,30 @@
 """Camera platform for Norish recipe images."""
+from __future__ import annotations
+
 import logging
 import os
 from typing import Optional
 
 from homeassistant.components.camera import Camera
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
+from .coordinator import NorishListCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
     """Set up Norish cameras."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: NorishListCoordinator = hass.data[DOMAIN][entry.entry_id]
     
     cameras = [
         NorishRecipeCamera(coordinator, entry, "breakfast", "Frühstück"),
@@ -29,16 +39,21 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class NorishRecipeCamera(CoordinatorEntity, Camera):
     """Camera entity for Norish recipe images."""
 
-    def __init__(self, coordinator, entry, meal_type: str, name: str):
+    def __init__(
+        self,
+        coordinator: NorishListCoordinator,
+        entry: ConfigEntry,
+        meal_type: str,
+        name: str,
+    ) -> None:
         """Initialize the camera."""
         CoordinatorEntity.__init__(self, coordinator)
         Camera.__init__(self)
-        
+
         self._entry = entry
         self._meal_type = meal_type.upper()
         self._attr_name = f"Norish {name} Bild"
         self._attr_unique_id = f"{entry.entry_id}_camera_{meal_type}"
-        self.hass = coordinator.hass
 
     def _get_base_url(self) -> str:
         return self.coordinator.api_data.get('url', '').rstrip('/')

@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-03-23
+
+### Added
+- 🔄 **GitHub Actions CI/CD** - Automatische Validierung bei jedem Push
+  - HACS-Validierung (`hacs/action`)
+  - Home Assistant hassfest-Validierung
+  - Läuft bei Push auf `main`/`master` und bei Pull Requests
+- 📋 **HACS Default Repository Vorbereitung**
+  - `codeowners` in manifest.json gesetzt (`@Caps3n`)
+  - `integration_type: "service"` hinzugefügt (HA 2024.x Anforderung)
+  - Minimum HA-Version auf `2024.6.0` gesetzt
+  - `media_player` zu `hacs.json` domains hinzugefügt
+
+### Changed
+- ⬆️ **Home Assistant Kompatibilität** auf HA 2024.6.0+ aktualisiert
+- 🧹 **Code-Qualität** – Alle Plattform-Dateien mit modernen Typ-Annotationen
+  - `from __future__ import annotations` in allen Plattform-Dateien
+  - `async_setup_entry` mit vollständigen Typ-Signaturen (`HomeAssistant`, `ConfigEntry`, `AddEntitiesCallback`)
+  - `Dict`, `List`, `Optional` von `typing` durch native Python-Typen ersetzt
+- 🔧 **`__init__.py`** verbessert
+  - `ConfigEntryNotReady` wird jetzt korrekt weitergegeben
+  - `entry.async_on_unload` für sauberes Entladen bei Options-Änderungen
+  - Verbesserte Log-Messages
+- 🔧 **`config_flow.py`** modernisiert
+  - Rückgabetyp `FlowResult` hinzugefügt
+  - `aiohttp` Timeout explizit gesetzt
+  - `User-Agent` Header in Validierung hinzugefügt
+- 📦 **`requirements`** – `aiohttp>=3.9.0` mit Mindestversion spezifiziert
+
 ## [1.3.0] - 2026-01-29
 
 ### Added

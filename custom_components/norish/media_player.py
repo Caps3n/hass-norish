@@ -1,4 +1,6 @@
 """Media player platform for Norish recipe videos."""
+from __future__ import annotations
+
 import logging
 from typing import Optional
 
@@ -8,18 +10,26 @@ from homeassistant.components.media_player import (
     MediaPlayerState,
     MediaType,
 )
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
+from .coordinator import NorishListCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
     """Set up Norish media players."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
-    
+    coordinator: NorishListCoordinator = hass.data[DOMAIN][entry.entry_id]
+
     players = [
         NorishVideoPlayer(coordinator, entry, "breakfast", "Frühstück"),
         NorishVideoPlayer(coordinator, entry, "lunch", "Mittagessen"),

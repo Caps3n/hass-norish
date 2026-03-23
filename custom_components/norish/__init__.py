@@ -1,31 +1,27 @@
 """Norish Integration für Home Assistant."""
 import logging
-from typing import Dict, Any
+from typing import Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_URL, CONF_API_KEY
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import DOMAIN, DEFAULT_URL
 from .coordinator import NorishListCoordinator
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = ["sensor", "todo", "calendar", "camera", "media_player"]
-
-
-async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Set up the Norish component."""
-    return True
+PLATFORMS: list[str] = ["sensor", "todo", "calendar", "camera", "media_player"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Norish from a config entry."""
-    raw_url = entry.data.get(CONF_URL) or DEFAULT_URL
+    raw_url: str = entry.data.get(CONF_URL) or DEFAULT_URL
     base_url = raw_url.rstrip("/")
-    api_key = entry.data.get(CONF_API_KEY)
+    api_key: str = entry.data.get(CONF_API_KEY, "")
 
-    headers = {
+    headers: dict[str, Any] = {
         "User-Agent": "HomeAssistant/Norish",
         "Accept": "application/json",
         "x-api-key": api_key,
@@ -33,7 +29,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     session = async_get_clientsession(hass)
 
-    api_data: Dict[str, Any] = {
+    api_data: dict[str, Any] = {
         "url": base_url,
         "session": session,
         "headers": headers,
@@ -44,13 +40,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         await coordinator.async_config_entry_first_refresh()
         _LOGGER.info("Norish Integration erfolgreich geladen")
-    except Exception as e:
-        _LOGGER.warning(f"Norish: Erster Abruf fehlgeschlagen ({e}), Integration wird trotzdem geladen")
+    except ConfigEntryNotReady:
+        raise
+    except Exception as err:  # noqa: BLE001
+        _LOGGER.warning(
+            "Norish: Erster Datenabruf fehlgeschlagen (%s) – Integration wird trotzdem geladen",
+            err,
+        )
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+
     return True
 
 
@@ -62,6 +66,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Reload config entry."""
+    """Reload config entry when options change."""
     await async_unload_entry(hass, entry)
     await async_setup_entry(hass, entry)

@@ -1,15 +1,32 @@
 """Todo platform for Norish shopping list."""
+from __future__ import annotations
+
 import logging
-from homeassistant.components.todo import TodoItem, TodoItemStatus, TodoListEntity, TodoListEntityFeature
+
+from homeassistant.components.todo import (
+    TodoItem,
+    TodoItemStatus,
+    TodoListEntity,
+    TodoListEntityFeature,
+)
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
 from .const import DOMAIN
+from .coordinator import NorishListCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
     """Set up Norish todo list."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: NorishListCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities([NorishShoppingList(coordinator, entry)])
 
 
