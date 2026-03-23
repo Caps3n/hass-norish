@@ -64,6 +64,21 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.warning("Failed to extract tRPC result: %s", err)
             return default
 
+    async def async_delete_groceries(self, grocery_ids: list[str]) -> bool:
+        """Delete grocery items from Norish.
+
+        Calls groceries.delete via POST and refreshes coordinator data.
+        Returns True on success, False on failure.
+        """
+        payload: dict[str, Any] = {"groceryIds": grocery_ids}
+        result = await self._post_trpc("groceries.delete", payload)
+        if result is None:
+            _LOGGER.error("Norish: failed to delete groceries %s", grocery_ids)
+            return False
+        _LOGGER.debug("Norish: deleted groceries %s", grocery_ids)
+        await self.async_request_refresh()
+        return True
+
     async def async_toggle_grocery(
         self, grocery_id: str, is_done: bool
     ) -> bool:
