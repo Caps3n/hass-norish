@@ -268,16 +268,30 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return None
 
     async def _fetch_groceries(self, data: dict[str, Any]) -> None:
-        """Fetch the grocery/shopping list."""
+        """Fetch the grocery/shopping list.
+
+        The API returns:
+          {"groceries": [...], "recurringGroceries": [...], "recipeMap": {...}}
+        """
         g_data = await self._fetch_trpc("groceries.list")
 
         if not g_data:
             _LOGGER.debug("Norish: no grocery data received")
             return
 
-        items = self._safe_get_trpc_result(g_data, [])
+        result = self._safe_get_trpc_result(g_data, {})
+
+        # Handle both legacy list format and current dict format
+        if isinstance(result, list):
+            items: list[Any] = result
+        elif isinstance(result, dict):
+            items = result.get("groceries", [])
+        else:
+            _LOGGER.warning("Norish: unexpected grocery format: %s", type(result))
+            return
+
         if not isinstance(items, list):
-            _LOGGER.warning("Norish: unexpected grocery format: %s", type(items))
+            _LOGGER.warning("Norish: unexpected groceries list format: %s", type(items))
             return
 
         data["groceries"] = items

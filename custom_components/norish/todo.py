@@ -61,7 +61,11 @@ class NorishShoppingList(CoordinatorEntity, TodoListEntity):
         for grocery in groceries:
             item_id: str = grocery.get("id", "")
             name: str = grocery.get("name") or grocery.get("ingredient") or "Unknown"
-            checked: bool = grocery.get("checked", False) or grocery.get("completed", False)
+            checked: bool = (
+                grocery.get("isDone", False)
+                or grocery.get("checked", False)
+                or grocery.get("completed", False)
+            )
             amount: str = grocery.get("amount") or grocery.get("quantity", "")
             unit: str = grocery.get("unit", "")
 
