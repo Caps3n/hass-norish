@@ -31,12 +31,17 @@ async def async_setup_entry(
 
 
 class NorishShoppingList(CoordinatorEntity, TodoListEntity):
-    """Norish Shopping List Entity."""
+    """Norish Shopping List entity."""
 
-    def __init__(self, coordinator, entry):
+    def __init__(
+        self,
+        coordinator: NorishListCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the shopping list."""
         super().__init__(coordinator)
         self._entry = entry
-        self._attr_name = "Norish Einkaufsliste"
+        self._attr_name = "Norish Shopping List"
         self._attr_unique_id = f"{entry.entry_id}_shopping_list"
         self._attr_supported_features = (
             TodoListEntityFeature.CREATE_TODO_ITEM
@@ -46,37 +51,43 @@ class NorishShoppingList(CoordinatorEntity, TodoListEntity):
 
     @property
     def todo_items(self) -> list[TodoItem]:
-        items = []
+        """Return the current list of todo items."""
+        items: list[TodoItem] = []
         if not self.coordinator.data:
             return items
 
-        groceries = self.coordinator.data.get("groceries", [])
-        
+        groceries: list[dict] = self.coordinator.data.get("groceries", [])
+
         for grocery in groceries:
-            item_id = grocery.get("id", "")
-            name = grocery.get("name") or grocery.get("ingredient") or "Unbekannt"
-            checked = grocery.get("checked", False) or grocery.get("completed", False)
-            amount = grocery.get("amount") or grocery.get("quantity", "")
-            unit = grocery.get("unit", "")
-            
+            item_id: str = grocery.get("id", "")
+            name: str = grocery.get("name") or grocery.get("ingredient") or "Unknown"
+            checked: bool = grocery.get("checked", False) or grocery.get("completed", False)
+            amount: str = grocery.get("amount") or grocery.get("quantity", "")
+            unit: str = grocery.get("unit", "")
+
             summary = f"{name} ({amount} {unit})".strip() if amount or unit else name
 
-            items.append(TodoItem(
-                uid=item_id,
-                summary=summary,
-                status=TodoItemStatus.COMPLETED if checked else TodoItemStatus.NEEDS_ACTION,
-            ))
+            items.append(
+                TodoItem(
+                    uid=item_id,
+                    summary=summary,
+                    status=TodoItemStatus.COMPLETED if checked else TodoItemStatus.NEEDS_ACTION,
+                )
+            )
 
         return items
 
     async def async_create_todo_item(self, item: TodoItem) -> None:
-        _LOGGER.info(f"Erstelle Todo: {item.summary}")
+        """Create a new todo item (triggers data refresh)."""
+        _LOGGER.info("Create todo item requested: %s", item.summary)
         await self.coordinator.async_request_refresh()
 
     async def async_update_todo_item(self, item: TodoItem) -> None:
-        _LOGGER.info(f"Update Todo: {item.uid}")
+        """Update a todo item (triggers data refresh)."""
+        _LOGGER.info("Update todo item requested: %s", item.uid)
         await self.coordinator.async_request_refresh()
 
     async def async_delete_todo_items(self, uids: list[str]) -> None:
-        _LOGGER.info(f"Lösche Todos: {uids}")
+        """Delete todo items (triggers data refresh)."""
+        _LOGGER.info("Delete todo items requested: %s", uids)
         await self.coordinator.async_request_refresh()
