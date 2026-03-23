@@ -38,12 +38,9 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._last_successful_update: date | None = None
         self._image_cache_path = os.path.join(hass.config.config_dir, IMAGE_CACHE_DIR)
 
-        # Create image cache directory (non-blocking via executor)
-        hass.loop.call_soon_threadsafe(
-            lambda: hass.async_add_executor_job(
-                os.makedirs, self._image_cache_path, True  # exist_ok=True
-            )
-        )
+        # Create image cache directory synchronously – this is a one-time fast filesystem
+        # call during coordinator init and safe to do inline.
+        os.makedirs(self._image_cache_path, exist_ok=True)
 
     def _safe_get_trpc_result(
         self,
@@ -176,21 +173,28 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "stores": {},
         }
 
+        # --- Core data: calendar + groceries (must succeed) ---
         try:
             await self._fetch_calendar(data)
-            await self._fetch_recipe_details_for_calendar(data)
-            await self._download_and_cache_images(data)
             await self._fetch_groceries(data)
             await self._fetch_stores(data)
-
-            self._last_successful_update = date.today()
-            _LOGGER.info(
-                "Norish: loaded %d calendar events", len(data.get("calendar", []))
-            )
-
         except Exception as err:  # noqa: BLE001
-            _LOGGER.error("Norish: failed to fetch data: %s", err)
+            _LOGGER.error("Norish: failed to fetch core data: %s", err)
             raise UpdateFailed(f"Error fetching Norish data: {err}") from err
+
+        # --- Recipe details + image caching (optional – never blocks core data) ---
+        try:
+            await self._fetch_recipe_details_for_calendar(data)
+            await self._download_and_cache_images(data)
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("Norish: recipe details / image caching failed: %s", err)
+
+        self._last_successful_update = date.today()
+        _LOGGER.info(
+            "Norish: loaded %d calendar events, %d grocery items",
+            len(data.get("calendar", [])),
+            len(data.get("groceries", [])),
+        )
 
         return data
 
