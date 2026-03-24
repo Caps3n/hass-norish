@@ -13,6 +13,7 @@ from typing import Any
 import aiohttp
 
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 _LOGGER = logging.getLogger(__name__)
@@ -120,6 +121,14 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 data=body,
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as resp:
+                if resp.status == 401:
+                    _LOGGER.error(
+                        "Norish: POST %s – Zugriff verweigert (401), API-Key abgelaufen",
+                        procedure,
+                    )
+                    raise ConfigEntryAuthFailed(
+                        "Norish API-Key ungültig oder abgelaufen (401)"
+                    )
                 if resp.status not in (200, 201):
                     text = await resp.text()
                     _LOGGER.error(
@@ -157,10 +166,12 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 ) as resp:
                     if resp.status == 401:
                         _LOGGER.error(
-                            "Norish: Access denied (401) for %s – check your API key",
+                            "Norish: Zugriff verweigert (401) für %s – API-Key abgelaufen oder ungültig",
                             procedure,
                         )
-                        return None
+                        raise ConfigEntryAuthFailed(
+                            "Norish API-Key ungültig oder abgelaufen (401) – bitte in den Integrationseinstellungen neu konfigurieren"
+                        )
 
                     if resp.status == 404:
                         _LOGGER.error(
@@ -251,6 +262,8 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self._fetch_calendar(data)
             await self._fetch_groceries(data)
             await self._fetch_stores(data)
+        except ConfigEntryAuthFailed:
+            raise  # Let HA handle auth failure → triggers re-auth notification
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("Norish: failed to fetch core data: %s", err)
             raise UpdateFailed(f"Error fetching Norish data: {err}") from err

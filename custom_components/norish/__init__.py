@@ -7,7 +7,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, CONF_URL
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import DEFAULT_URL, DOMAIN
@@ -29,9 +29,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "x-api-key": api_key,
     }
 
+    session = async_get_clientsession(hass)
+
     api_data: dict[str, Any] = {
         "url": base_url,
-        "session": async_get_clientsession(hass),
+        "session": session,
         "headers": headers,
     }
 
@@ -40,16 +42,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         await coordinator.async_config_entry_first_refresh()
         _LOGGER.info("Norish integration loaded successfully")
-    except ConfigEntryNotReady:
-        raise
+    except (ConfigEntryNotReady, ConfigEntryAuthFailed):
+        raise  # Let HA handle these – shows appropriate UI notification
     except Exception as err:  # noqa: BLE001
         _LOGGER.warning(
-            "Norish: initial data fetch failed (%s) – loading integration anyway",
-            err,
+            "Norish: initial data fetch failed (%s) – loading integration anyway", err
         )
 
-    hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = coordinator
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))

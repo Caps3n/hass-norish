@@ -6,17 +6,26 @@
         "description": "Gib die URL und den API-Key deiner Norish-Instanz ein.",
         "data": {
           "url": "Norish URL",
-          "api_key": "API Key"
+          "api_key": "API-Key"
+        }
+      },
+      "reconfigure": {
+        "title": "Norish neu konfigurieren",
+        "description": "Aktualisiere die URL oder den API-Key. Den API-Key findest du in den Norish-Einstellungen unter 'API-Schlüssel'.",
+        "data": {
+          "url": "Norish URL",
+          "api_key": "API-Key"
         }
       }
     },
     "error": {
       "cannot_connect": "Verbindung fehlgeschlagen. Bitte URL prüfen.",
-      "invalid_auth": "Ungültiger API Key.",
+      "invalid_auth": "Ungültiger API-Key. Bitte in den Norish-Einstellungen unter 'API-Schlüssel' einen gültigen Key erstellen.",
       "unknown": "Unbekannter Fehler."
     },
     "abort": {
-      "already_configured": "Norish ist bereits konfiguriert."
+      "already_configured": "Norish ist bereits konfiguriert.",
+      "reconfigure_successful": "Konfiguration erfolgreich aktualisiert."
     }
   }
 }
