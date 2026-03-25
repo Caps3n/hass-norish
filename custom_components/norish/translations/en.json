@@ -8,15 +8,24 @@
           "url": "Norish URL",
           "api_key": "API Key"
         }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Norish",
+        "description": "Update the URL or API key. You can find your API key in the Norish settings under 'API Keys'.",
+        "data": {
+          "url": "Norish URL",
+          "api_key": "API Key"
+        }
       }
     },
     "error": {
       "cannot_connect": "Connection failed. Please check the URL.",
-      "invalid_auth": "Invalid API key.",
+      "invalid_auth": "Invalid API key. Please create a valid key in the Norish settings under 'API Keys'.",
       "unknown": "Unexpected error."
     },
     "abort": {
-      "already_configured": "Norish is already configured."
+      "already_configured": "Norish is already configured.",
+      "reconfigure_successful": "Configuration updated successfully."
     }
   }
 }

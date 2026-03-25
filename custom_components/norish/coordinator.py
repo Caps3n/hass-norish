@@ -123,11 +123,11 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ) as resp:
                 if resp.status == 401:
                     _LOGGER.error(
-                        "Norish: POST %s – Zugriff verweigert (401), API-Key abgelaufen",
+                        "Norish: POST %s – access denied (401), API key expired or invalid",
                         procedure,
                     )
                     raise ConfigEntryAuthFailed(
-                        "Norish API-Key ungültig oder abgelaufen (401)"
+                        "Norish API key invalid or expired (401)"
                     )
                 if resp.status not in (200, 201):
                     text = await resp.text()
@@ -166,11 +166,11 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 ) as resp:
                     if resp.status == 401:
                         _LOGGER.error(
-                            "Norish: Zugriff verweigert (401) für %s – API-Key abgelaufen oder ungültig",
+                            "Norish: access denied (401) for %s – API key expired or invalid",
                             procedure,
                         )
                         raise ConfigEntryAuthFailed(
-                            "Norish API-Key ungültig oder abgelaufen (401) – bitte in den Integrationseinstellungen neu konfigurieren"
+                            "Norish API key invalid or expired (401) – please reconfigure the integration"
                         )
 
                     if resp.status == 404:
@@ -234,7 +234,7 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if attempt < MAX_RETRIES - 1:
                     delay = RETRY_DELAY_BASE * (2**attempt)
                     _LOGGER.warning(
-                        "Norish: Verbindung unterbrochen für %s (%s), Wiederverbinden %d/%d in %ds",
+                        "Norish: connection dropped for %s (%s), reconnecting %d/%d in %ds",
                         procedure,
                         type(err).__name__,
                         attempt + 1,
@@ -244,7 +244,7 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     await asyncio.sleep(delay)
                     continue
                 _LOGGER.error(
-                    "Norish: Verbindung fehlgeschlagen für %s nach %d Versuchen: %s",
+                    "Norish: connection failed for %s after %d attempts: %s",
                     procedure,
                     MAX_RETRIES,
                     err,

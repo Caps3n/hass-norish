@@ -129,7 +129,7 @@ class NorishConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except (CannotConnect, InvalidAuth):
             raise
         except aiohttp.ClientError as err:
-            _LOGGER.error("Verbindungsfehler beim Validieren der Norish-Zugangsdaten: %s", err)
+            _LOGGER.error("Norish: connection error while validating credentials: %s", err)
             raise CannotConnect from err
 
 
