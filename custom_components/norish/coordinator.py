@@ -32,7 +32,7 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             hass,
             _LOGGER,
             name="Norish API",
-            update_interval=timedelta(minutes=5),
+            update_interval=timedelta(minutes=2),
         )
         self.api_data = api_data
         self.store_map: dict[str, str] = {}
@@ -226,6 +226,28 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     continue
                 _LOGGER.error(
                     "Norish: Timeout for %s after %d attempts", procedure, MAX_RETRIES
+                )
+                return None
+
+            except (aiohttp.ServerDisconnectedError, aiohttp.ClientConnectorError) as err:
+                # Stale connection or server reset – always retry these
+                if attempt < MAX_RETRIES - 1:
+                    delay = RETRY_DELAY_BASE * (2**attempt)
+                    _LOGGER.warning(
+                        "Norish: Verbindung unterbrochen für %s (%s), Wiederverbinden %d/%d in %ds",
+                        procedure,
+                        type(err).__name__,
+                        attempt + 1,
+                        MAX_RETRIES,
+                        delay,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                _LOGGER.error(
+                    "Norish: Verbindung fehlgeschlagen für %s nach %d Versuchen: %s",
+                    procedure,
+                    MAX_RETRIES,
+                    err,
                 )
                 return None
 

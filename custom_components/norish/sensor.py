@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import time, timedelta
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity
@@ -16,6 +16,28 @@ from .const import DOMAIN
 from .coordinator import NorishListCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+# Default meal times used to determine when a slot is "over".
+# A meal is hidden 30 minutes after its default start time.
+MEAL_SLOT_TIMES: dict[str, time] = {
+    "BREAKFAST": time(8, 0),
+    "LUNCH": time(12, 0),
+    "SNACK": time(15, 0),
+    "DINNER": time(18, 0),
+}
+# Grace period after which a past meal is hidden
+MEAL_HIDE_AFTER = timedelta(minutes=30)
+
+
+def _is_meal_past(meal_type: str) -> bool:
+    """Return True if today's meal slot has ended (slot time + 30 min has passed)."""
+    slot_time = MEAL_SLOT_TIMES.get(meal_type.upper())
+    if slot_time is None:
+        return False  # Unknown slot → always show
+    now = dt_util.now()
+    from datetime import datetime
+    cutoff = datetime.combine(now.date(), slot_time, tzinfo=now.tzinfo) + MEAL_HIDE_AFTER
+    return now >= cutoff
 
 
 async def async_setup_entry(
@@ -138,6 +160,10 @@ class NorishMealSensor(CoordinatorEntity, SensorEntity):
             slot: str = event.get("slot") or "meal"
             meal_type = slot.upper() if slot else "MEAL"
 
+            # Hide today's meals whose time slot ended more than 30 min ago
+            if _is_meal_past(meal_type):
+                continue
+
             recipe_id: str | None = event.get("recipeId")
 
             # Prefer locally cached image, then remote, then fallback URL
@@ -243,6 +269,10 @@ class NorishWeekPlannerSensor(CoordinatorEntity, SensorEntity):
 
                 slot: str = event.get("slot") or "meal"
                 meal_type = slot.upper() if slot else "MEAL"
+
+                # For today only: hide meals whose time slot ended > 30 min ago
+                if day_offset == 0 and _is_meal_past(meal_type):
+                    continue
 
                 recipe_id: str | None = event.get("recipeId")
 

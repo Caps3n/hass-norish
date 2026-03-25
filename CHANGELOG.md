@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-03-25
+
+### Added
+- 🔄 **API-Key Ablauf automatisch erkennen** – Die Integration zeigt jetzt eine HA-Benachrichtigung an, wenn der API-Key abläuft (HTTP 401), statt still zu scheitern.
+  - Nutzt `ConfigEntryAuthFailed` → Home Assistant deaktiviert automatisch den Polling und zeigt im UI „Neu konfigurieren" an
+  - Betrifft sowohl GET- als auch POST-Anfragen
+- 🔑 **„Neu konfigurieren"-Schritt** (`async_step_reconfigure`) – API-Key kann über das Drei-Punkte-Menü der Integration aktualisiert werden, ohne die Integration zu löschen
+  - Neue Seite im Config Flow mit URL + API-Key Feldern
+  - Validierung gegen beide Endpunkte (`groceries.list` + `calendar.listItems`)
+  - Deutsche Übersetzungen für alle neuen Texte
+- ⏰ **Wochenplaner: vergangene Mahlzeiten ausblenden** – Heute werden Mahlzeiten automatisch ausgeblendet, wenn ihr Zeitfenster um mehr als 30 Minuten überschritten ist
+  - Standard-Zeiten: Frühstück 08:00, Mittagessen 12:00, Snack 15:00, Abendessen 18:00
+  - Gilt für alle `NorishMealSensor`-Entities und den `NorishWeekPlannerSensor`
+  - Zukünftige Tage sind nicht betroffen – dort bleiben alle Mahlzeiten sichtbar
+  - Verwendet `dt_util.now()` mit korrekter HA-Zeitzone
+
+### Changed
+- ⚡ **Polling-Intervall** von 5 Minuten auf **2 Minuten** reduziert – die Integration synchronisiert sich häufiger mit der Norish API
+- 🔁 **Verbindungsresilienz** verbessert – bei unterbrochenen Verbindungen (`ServerDisconnectedError`, `ClientConnectorError`) wird jetzt automatisch mit exponentiellem Backoff wiederholt, statt direkt zu scheitern
+
+### Fixed
+- 🐛 `ConfigEntryAuthFailed` wurde durch einen zu breiten `except Exception`-Block verschluckt – jetzt korrekt weitergegeben, damit HA die Re-Auth-Benachrichtigung anzeigt
+
 ## [1.4.0] - 2026-03-23
 
 ### Added
