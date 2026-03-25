@@ -30,14 +30,26 @@ MEAL_HIDE_AFTER = timedelta(minutes=30)
 
 
 def _is_meal_past(meal_type: str) -> bool:
-    """Return True if today's meal slot has ended (slot time + 30 min has passed)."""
-    slot_time = MEAL_SLOT_TIMES.get(meal_type.upper())
-    if slot_time is None:
-        return False  # Unknown slot → always show
-    now = dt_util.now()
-    from datetime import datetime
-    cutoff = datetime.combine(now.date(), slot_time, tzinfo=now.tzinfo) + MEAL_HIDE_AFTER
-    return now >= cutoff
+    """Return True if today's meal slot has ended (slot time + 30 min has passed).
+
+    Uses now.replace() to stay in the same timezone as HA's current time,
+    avoiding any pytz/zoneinfo localization issues.
+    """
+    try:
+        slot_time = MEAL_SLOT_TIMES.get(meal_type.upper())
+        if slot_time is None:
+            return False  # Unknown slot → always show
+        now = dt_util.now()
+        # Build cutoff in the same timezone as 'now' – replace is safe for all tz backends
+        cutoff = now.replace(
+            hour=slot_time.hour,
+            minute=slot_time.minute,
+            second=0,
+            microsecond=0,
+        ) + MEAL_HIDE_AFTER
+        return now >= cutoff
+    except Exception:  # noqa: BLE001
+        return False  # On any error, default to showing the meal
 
 
 async def async_setup_entry(
@@ -157,8 +169,8 @@ class NorishMealSensor(CoordinatorEntity, SensorEntity):
             if recipe_details.get("name"):
                 name = recipe_details["name"]
 
-            slot: str = event.get("slot") or "meal"
-            meal_type = slot.upper() if slot else "MEAL"
+            slot_raw = event.get("slot") or event.get("type") or "meal"
+            meal_type = slot_raw.upper() if isinstance(slot_raw, str) else "MEAL"
 
             # Hide today's meals whose time slot ended more than 30 min ago
             if _is_meal_past(meal_type):
@@ -267,8 +279,8 @@ class NorishWeekPlannerSensor(CoordinatorEntity, SensorEntity):
                 if recipe_details.get("name"):
                     name = recipe_details["name"]
 
-                slot: str = event.get("slot") or "meal"
-                meal_type = slot.upper() if slot else "MEAL"
+                slot_raw = event.get("slot") or event.get("type") or "meal"
+                meal_type = slot_raw.upper() if isinstance(slot_raw, str) else "MEAL"
 
                 # For today only: hide meals whose time slot ended > 30 min ago
                 if day_offset == 0 and _is_meal_past(meal_type):
