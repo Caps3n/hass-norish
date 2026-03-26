@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-03-26
+
+### Fixed
+- 🔁 **Integration bleibt bei kurzzeitigen 401-Fehlern aktiv** – Ein einzelner 401-Fehler (z.B. durch einen Norish-Server-Neustart oder kurzzeitige Netzwerkprobleme) deaktiviert die Integration nicht mehr sofort.
+  - Die Integration toleriert jetzt bis zu 2 aufeinanderfolgende 401-Fehler (`UpdateFailed`, Retry beim nächsten Poll)
+  - Erst beim **3. aufeinanderfolgenden** 401 wird `ConfigEntryAuthFailed` ausgelöst → HA zeigt „Neu konfigurieren" an
+  - Bei erfolgreichem Update wird der Fehlerzähler automatisch zurückgesetzt
+
 ## [1.5.0] - 2026-03-25
 
 ### Added

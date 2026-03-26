@@ -38,6 +38,9 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.store_map: dict[str, str] = {}
         self._last_successful_update: date | None = None
         self._image_cache_path = os.path.join(hass.config.config_dir, IMAGE_CACHE_DIR)
+        # Track consecutive auth failures – only disable integration after 3 in a row
+        # to avoid false positives from transient server hiccups returning 401.
+        self._consecutive_auth_failures: int = 0
 
         # Create image cache directory synchronously – this is a one-time fast filesystem
         # call during coordinator init and safe to do inline.
@@ -285,7 +288,19 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self._fetch_groceries(data)
             await self._fetch_stores(data)
         except ConfigEntryAuthFailed:
-            raise  # Let HA handle auth failure → triggers re-auth notification
+            self._consecutive_auth_failures += 1
+            _LOGGER.warning(
+                "Norish: auth failure #%d – will disable integration after 3 consecutive failures",
+                self._consecutive_auth_failures,
+            )
+            if self._consecutive_auth_failures >= 3:
+                # Persistent auth failure → notify user to reconfigure
+                self._consecutive_auth_failures = 0
+                raise
+            # Transient 401 – keep integration alive, retry on next poll
+            raise UpdateFailed(
+                f"Norish auth error (attempt {self._consecutive_auth_failures}/3) – retrying"
+            ) from None
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("Norish: failed to fetch core data: %s", err)
             raise UpdateFailed(f"Error fetching Norish data: {err}") from err
@@ -297,6 +312,7 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except Exception as err:  # noqa: BLE001
             _LOGGER.warning("Norish: recipe details / image caching failed: %s", err)
 
+        self._consecutive_auth_failures = 0  # Reset on successful update
         self._last_successful_update = date.today()
         _LOGGER.info(
             "Norish: loaded %d calendar events, %d grocery items",
