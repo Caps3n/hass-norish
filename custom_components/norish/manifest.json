@@ -9,5 +9,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/Caps3n/hass-norish/issues",
   "requirements": ["aiohttp>=3.9.0"],
-  "version": "1.5.1"
+  "version": "1.5.2"
 }
