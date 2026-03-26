@@ -1,158 +1,214 @@
 # Norish Integration für Home Assistant
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/Caps3n/hass-norish)
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![Version](https://img.shields.io/github/v/release/Caps3n/hass-norish?label=version&color=blue)](https://github.com/Caps3n/hass-norish/releases)
+[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![HA Version](https://img.shields.io/badge/Home%20Assistant-2024.6%2B-blue.svg)](https://www.home-assistant.io/)
 [![Lizenz](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Validate](https://github.com/Caps3n/hass-norish/actions/workflows/validate.yaml/badge.svg)](https://github.com/Caps3n/hass-norish/actions/workflows/validate.yaml)
 
-Home Assistant Integration für das Norish Rezept- und Essensplanungssystem.
+[🇬🇧 English Version](README.md)
 
-[🇬🇧 English Version](README.md) | [🇫🇷 Version Française](README_FR.md) | [🇪🇸 Versión Española](README_ES.md)
+Eine vollständige Home Assistant Integration für [Norish](https://github.com/norish-recipes/norish) — die Open-Source-App für Rezepte und Essensplanung.
 
-## Funktionen
+> Verbindet deine Norish-Instanz mit Home Assistant: Mahlzeiten-Sensoren, Einkaufsliste, Kalender, Rezeptbilder und Video-Unterstützung — alles in einer Integration.
 
-- 📅 **Essensplan-Kalender** - Zeige deinen Wochenplan an
-- 🍳 **Mehrere Mahlzeiten-Sensoren** - Separate Sensoren für Frühstück, Mittagessen, Abendessen und Snacks
-- 🖼️ **Rezept-Bilder** - Zeige Rezeptfotos in deinem Dashboard
-- 🛒 **Einkaufslisten** - Verwalte Einkaufslisten nach Geschäft
-- 📷 **Kamera-Entitäten** - Alternative Bildanzeige über die Kamera-Plattform
-- 🌍 **Mehrsprachig** - Verfügbar auf Deutsch, Englisch, Französisch, Spanisch und Italienisch
+---
 
-## Installation
+## ✨ Funktionen
+
+### 🍳 Mahlzeiten-Sensoren
+- **6 Sensoren**: Alle Mahlzeiten heute, Frühstück, Mittagessen, Abendessen, Snack, Wochenplan
+- Automatische **Rezeptbild**-Anzeige über `entity_picture`
+- **Video-Unterstützung** — Autoplay, Loop, stumm (genau wie in der Norish App)
+- Attribute: Rezeptname, Typ, Bild-URL, Rezept-ID
+
+### 📅 Wochenplan-Sensor
+- 7-Tage-Übersicht aller geplanten Mahlzeiten
+- Tages-Attribute: `mo`, `tu`, `we`, `th`, `fr`, `sa`, `su`
+- Heute und Wochenenden werden hervorgehoben
+- Sortiert nach Mahlzeit-Typ (Frühstück → Mittagessen → Abendessen → Snack)
+- **Vergangene Mahlzeiten werden automatisch ausgeblendet** — 30 Minuten nach dem Standard-Zeitfenster
+
+### 📆 Kalender
+- Nativer Home Assistant Kalender
+- Ein Eintrag pro Mahlzeit mit korrekten Zeitfenstern
+
+### 🛒 Einkaufsliste
+- Native Home Assistant Todo-Listen-Entität
+- Artikel mit Menge und Einheit
+- Erstellen, aktualisieren und löschen
+
+### 📷 Kamera-Entitäten
+- Eine Kamera pro Mahlzeit-Typ
+- Lokal gecachte Bilder für schnelle Anzeige
+
+### 🎬 Media Player Entitäten
+- Ein Media Player pro Mahlzeit-Typ
+- Zeigt das Rezeptvideo, wenn verfügbar
+
+### 🌍 Mehrsprachig
+- 5 Sprachen: 🇩🇪 Deutsch · 🇬🇧 English · 🇫🇷 Français · 🇪🇸 Español · 🇮🇹 Italiano
+
+---
+
+## 🚀 Installation
 
 ### Option 1: HACS (Empfohlen)
 
-1. Öffne HACS in Home Assistant
-2. Klicke auf "Integrationen"
-3. Klicke auf die drei Punkte oben rechts
-4. Wähle "Benutzerdefinierte Repositories"
-5. Füge `https://github.com/Caps3n/hass-norish` als Repository hinzu
-6. Kategorie: "Integration"
-7. Klicke "Hinzufügen"
-8. Suche nach "Norish" in HACS
-9. Klicke "Installieren"
-10. Starte Home Assistant neu
+1. **HACS** in Home Assistant öffnen
+2. **Integrationen** → ⋮ oben rechts → **Benutzerdefinierte Repositories**
+3. URL hinzufügen: `https://github.com/Caps3n/hass-norish` → Kategorie: `Integration`
+4. Nach **"Norish"** suchen und **Installieren** klicken
+5. Home Assistant neu starten
 
-### Option 2: Manuelle Installation
+### Option 2: Manuell
 
-1. Lade die neueste Version von [GitHub](https://github.com/Caps3n/hass-norish/releases) herunter
-2. Entpacke den `norish` Ordner in dein `custom_components` Verzeichnis
-3. Starte Home Assistant neu
+1. Die [neueste Version](https://github.com/Caps3n/hass-norish/releases) herunterladen
+2. Den `norish`-Ordner in `config/custom_components/` kopieren
+3. Home Assistant neu starten
 
-## Konfiguration
+---
 
-1. Gehe zu **Einstellungen** > **Geräte & Dienste**
-2. Klicke auf **+ Integration hinzufügen**
-3. Suche nach "Norish"
-4. Gib deine Norish Server-URL und deinen API-Schlüssel ein
-5. Klicke auf **Absenden**
+## ⚙️ Konfiguration
 
-### Konfigurationsoptionen
+1. **Einstellungen → Geräte & Dienste**
+2. **+ Integration hinzufügen**
+3. Nach **"Norish"** suchen
+4. Eingeben:
+   - **Server-URL** — z.B. `https://norish.deinedomain.de`
+   - **API-Key** — zu finden in den Norish-Einstellungen unter **API-Schlüssel**
+5. **Absenden** klicken
 
-- **Server URL**: Die URL deiner Norish-Instanz (z.B. `https://norish.deinedomain.de`)
-- **API-Schlüssel**: Dein Norish API-Schlüssel (zu finden in deinen Norish-Kontoeinstellungen)
+### API-Key aktualisieren
 
-### Optionen
+Wenn der API-Key abläuft, zeigt Home Assistant automatisch eine **„Neu konfigurieren"**-Benachrichtigung an. Über das ⋮-Menü auf der Integrations-Karte → **Neu konfigurieren** kann der Key aktualisiert werden — ohne die Integration zu löschen.
 
-Nach der Installation kannst du konfigurieren, welche Mahlzeiten-Typen angezeigt werden sollen:
+---
 
-- Frühstück anzeigen
-- Mittagessen anzeigen
-- Abendessen anzeigen
-- Snacks anzeigen
-
-## Entitäten
-
-Die Integration erstellt folgende Entitäten:
+## 📊 Entitäten
 
 ### Sensoren
 
-- `sensor.norish_mahlzeiten_heute` - Alle Mahlzeiten für heute
-- `sensor.norish_fruhstuck` - Frühstück
-- `sensor.norish_mittagessen` - Mittagessen
-- `sensor.norish_abendessen` - Abendessen
-- `sensor.norish_snack` - Snacks
-
-Jeder Sensor enthält:
-- Aktuellen Mahlzeitennamen als Status
-- Rezeptbild (falls verfügbar)
-- Zubereitungszeit
-- Portionen
-- Beschreibung
+| Entität | Beschreibung |
+|---------|--------------|
+| `sensor.norish_meals_today` | Alle Mahlzeiten heute |
+| `sensor.norish_breakfast` | Frühstück heute |
+| `sensor.norish_lunch` | Mittagessen heute |
+| `sensor.norish_dinner` | Abendessen heute |
+| `sensor.norish_snack` | Snack heute |
+| `sensor.norish_week_planner` | 7-Tage-Mahlzeitenübersicht |
 
 ### Kalender
 
-- `calendar.norish_speiseplan` - Wöchentlicher Essenskalender
+| Entität | Beschreibung |
+|---------|--------------|
+| `calendar.norish_meal_plan` | Wöchentlicher Mahlzeiten-Kalender |
 
-### Todo-Listen
+### Todo
 
-- `todo.norish_unsortiert` - Unsortierte Einkaufsartikel
-- `todo.norish_<geschaeft_name>` - Einkaufsliste pro Geschäft
+| Entität | Beschreibung |
+|---------|--------------|
+| `todo.norish_shopping_list` | Einkaufsliste |
 
-### Kameras (Optional)
+### Kameras
 
-- `camera.norish_fruhstuck_bild` - Frühstücks-Rezeptbild
-- `camera.norish_mittagessen_bild` - Mittagessen-Rezeptbild
-- `camera.norish_abendessen_bild` - Abendessen-Rezeptbild
-- `camera.norish_snack_bild` - Snack-Rezeptbild
+| Entität | Beschreibung |
+|---------|--------------|
+| `camera.norish_breakfast_image` | Frühstücks-Rezeptbild |
+| `camera.norish_lunch_image` | Mittagessen-Rezeptbild |
+| `camera.norish_dinner_image` | Abendessen-Rezeptbild |
+| `camera.norish_snack_image` | Snack-Rezeptbild |
 
-## Dashboard-Beispiele
+### Media Player
 
-### Einfache Picture Entity Card
+| Entität | Beschreibung |
+|---------|--------------|
+| `media_player.norish_breakfast_video` | Frühstücks-Rezeptvideo |
+| `media_player.norish_lunch_video` | Mittagessen-Rezeptvideo |
+| `media_player.norish_dinner_video` | Abendessen-Rezeptvideo |
+| `media_player.norish_snack_video` | Snack-Rezeptvideo |
+
+---
+
+## 🎨 Dashboard-Beispiele
+
+### Einfache Bild-Karte
 
 ```yaml
 type: picture-entity
-entity: sensor.norish_mittagessen
+entity: sensor.norish_lunch
 show_name: true
 show_state: true
 ```
 
-### Grid-Layout
+### 2×2 Mahlzeiten-Grid
 
 ```yaml
 type: grid
 columns: 2
 cards:
   - type: picture-entity
-    entity: sensor.norish_fruhstuck
+    entity: sensor.norish_breakfast
   - type: picture-entity
-    entity: sensor.norish_mittagessen
+    entity: sensor.norish_lunch
   - type: picture-entity
-    entity: sensor.norish_abendessen
+    entity: sensor.norish_dinner
   - type: picture-entity
     entity: sensor.norish_snack
 ```
 
-### Mit Einkaufsliste
+### Wochenübersicht (mit Heute-Hervorhebung)
 
 ```yaml
-type: vertical-stack
-cards:
-  - type: picture-entity
-    entity: sensor.norish_mittagessen
-  - type: todo-list
-    entity: todo.norish_unsortiert
+type: markdown
+content: |
+  {% set week = state_attr('sensor.norish_week_planner', 'week_data') %}
+  {% for day in week %}
+  <div style="background:{% if day.is_today %}#1e3a5f{% else %}#1c1c1c{% endif %};
+              border-radius:10px;padding:12px;margin:6px 0;">
+    <strong style="color:white;">{{ day.weekday }} · {{ day.date_formatted }}</strong>
+    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+    {% for meal in day.meals %}
+      <div style="flex:1;min-width:80px;height:70px;border-radius:6px;overflow:hidden;position:relative;">
+        {% if meal.image %}
+          <img src="{{ meal.image }}" style="width:100%;height:100%;object-fit:cover;">
+        {% endif %}
+        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.5);
+                    color:white;font-size:10px;padding:2px 4px;">{{ meal.type }}</div>
+      </div>
+    {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
 ```
 
-Mehr Beispiele in [DASHBOARD_BEISPIELE.yaml](DASHBOARD_BEISPIELE.yaml)
+Weitere Beispiele in [DASHBOARD_BEISPIELE.yaml](DASHBOARD_BEISPIELE.yaml)
 
-## Fehlerbehebung
+---
 
-### Keine Bilder werden angezeigt
+## 🔧 Fehlerbehebung
 
-1. Prüfe, ob deine API Bild-URLs zurückgibt
-2. Verifiziere, dass die Bild-URLs erreichbar sind
-3. Prüfe die Logs: `grep -i norish /config/home-assistant.log`
+**Integration zeigt „Einrichtungsfehler" / hört nach einigen Stunden auf zu funktionieren**
+- Der API-Key ist abgelaufen. **Einstellungen → Geräte & Dienste → Norish → ⋮ → Neu konfigurieren** und einen neuen Key aus den Norish-Einstellungen unter **API-Schlüssel** eingeben.
+- Die Integration toleriert bis zu 2 kurzzeitige Auth-Fehler automatisch, bevor sie sich deaktiviert.
 
-### Verbindungsfehler
+**Keine Mahlzeiten angezeigt / „No meals planned"**
+- Prüfen, ob die Integration aktiv ist (kein Einrichtungsfehler)
+- Vergangene Mahlzeiten werden automatisch ausgeblendet: Frühstück nach 08:30, Mittagessen nach 12:30, Snack nach 15:30, Abendessen nach 18:30
+- Zukünftige Tage zeigen immer alle Mahlzeiten
 
-1. Überprüfe, ob die Server-URL korrekt ist
-2. Prüfe deinen API-Schlüssel
-3. Stelle sicher, dass Home Assistant deinen Norish-Server erreichen kann
-4. Prüfe Firewall-Regeln
+**Keine Bilder angezeigt**
+- Prüfen, ob die Norish-Instanz Bild-URLs zurückgibt
+- Sicherstellen, dass die Bilder von Home Assistant erreichbar sind
 
-### Debug-Logging aktivieren
+**Verbindungsfehler beim Einrichten**
+- Server-URL von Home Assistant aus erreichbar?
+- API-Key korrekt? (Norish-Einstellungen → API-Schlüssel)
+- Firewall / Reverse-Proxy-Einstellungen prüfen
 
-Füge zu `configuration.yaml` hinzu:
+**Debug-Logging aktivieren**
+
+In `configuration.yaml` hinzufügen:
 
 ```yaml
 logger:
@@ -161,46 +217,40 @@ logger:
     custom_components.norish: debug
 ```
 
-## Mitwirken
+---
 
-Beiträge sind willkommen! Bitte:
+## 🆕 Neu in v1.5.1
 
-1. Forke das Repository
-2. Erstelle einen Feature-Branch
-3. Mache deine Änderungen
-4. Füge Tests hinzu, falls zutreffend
-5. Reiche einen Pull Request ein
+- **Robuste Auth-Behandlung** — ein einzelner kurzzeitiger 401-Fehler deaktiviert die Integration nicht mehr; erst 3 aufeinanderfolgende Fehler lösen „Neu konfigurieren" aus
+- **API-Key-Ablauf-Erkennung** — bei echtem Ablauf zeigt HA eine klare Benachrichtigung mit direktem „Neu konfigurieren"-Button
+- **Neu konfigurieren ohne Neuinstallation** — API-Key über ⋮ → Neu konfigurieren aktualisieren
+- **2-Minuten-Polling** — synchronisiert alle 2 Minuten (war 5)
+- **Auto-Reconnect** — erholt sich automatisch von unterbrochenen Verbindungen
+- **Vergangene Mahlzeiten ausblenden** — heutige Mahlzeiten verschwinden 30 min nach ihrem Zeitfenster
 
-## Änderungsprotokoll
-
-### Version 1.0.0 (29.01.2026)
-
-- ✨ Erste Veröffentlichung
-- 📅 Kalender-Integration
-- 🍳 Mahlzeiten-Sensoren mit Bildern
-- 🛒 Einkaufslisten-Unterstützung
-- 📷 Kamera-Entitäten
-- 🌍 Mehrsprachige Unterstützung (DE, EN, ES, FR, IT)
-- ⚡ Verbesserte Fehlerbehandlung
-- 🔄 Retry-Logik für API-Aufrufe
-- 🎨 Bessere Bild-Unterstützung
-
-## Lizenz
-
-Dieses Projekt ist unter der MIT-Lizenz lizenziert - siehe die [LICENSE](LICENSE)-Datei für Details.
-
-## Danksagungen
-
-- Erstellt von [@Caps3n](https://github.com/Caps3n)
-- Inspiriert vom Norish Essensplanungssystem
-- Gebaut für die Home Assistant Community
-
-## Support
-
-- 🐛 [Einen Fehler melden](https://github.com/Caps3n/hass-norish/issues)
-- 💡 [Eine Funktion vorschlagen](https://github.com/Caps3n/hass-norish/issues)
-- 💬 [Diskussionen](https://github.com/Caps3n/hass-norish/discussions)
+Vollständige Versionshistorie in [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
-Mit ❤️ für die Home Assistant Community erstellt
+## 🤝 Mitwirken
+
+Beiträge sind willkommen!
+
+1. Repository forken
+2. Feature-Branch erstellen (`git checkout -b feature/mein-feature`)
+3. Änderungen committen
+4. Pull Request öffnen
+
+---
+
+## 📄 Lizenz
+
+MIT-Lizenz — siehe [LICENSE](LICENSE) für Details.
+
+---
+
+## 🙏 Danksagungen
+
+- Erstellt von [@Caps3n](https://github.com/Caps3n)
+- Gebaut für [Norish](https://github.com/norish-recipes/norish)
+- Mit ❤️ für die Home Assistant Community

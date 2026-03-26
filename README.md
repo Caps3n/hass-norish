@@ -25,6 +25,7 @@ A full-featured Home Assistant integration for [Norish](https://github.com/noris
 - Per-day attributes: `mo`, `tu`, `we`, `th`, `fr`, `sa`, `su`
 - Highlights today and weekends
 - Sorted by meal type (Breakfast → Lunch → Dinner → Snack)
+- **Past meals auto-hidden** — meals are removed from today's view 30 min after their default time slot
 
 ### 📆 Calendar
 - Native Home Assistant calendar entity
@@ -90,8 +91,12 @@ A full-featured Home Assistant integration for [Norish](https://github.com/noris
 3. Search for **"Norish"**
 4. Enter:
    - **Server URL** — e.g. `https://norish.yourdomain.com`
-   - **API Key** — your Norish API key
+   - **API Key** — find this in your Norish settings under **API Keys**
 5. Click **Submit**
+
+### Updating your API Key
+
+If your API key expires, Home Assistant will show a **"Reconfigure"** notification automatically. Click it (or use the ⋮ menu on the integration card → **Reconfigure**) to enter a new key — no need to delete and re-add the integration.
 
 ---
 
@@ -241,14 +246,22 @@ sensor.norish_week_planner:
 
 ## 🔧 Troubleshooting
 
+**Integration shows "Setup error" / stops working after a few hours**
+- Your API key has expired. Go to **Settings → Devices & Services → Norish → ⋮ → Reconfigure** and enter a new key from your Norish settings under **API Keys**.
+- The integration tolerates up to 2 transient auth errors before disabling itself, so brief server hiccups are handled automatically.
+
+**No meals shown / "No meals planned"**
+- Check the integration is active (not showing a setup error)
+- Past meals are automatically hidden: Breakfast after 08:30, Lunch after 12:30, Snack after 15:30, Dinner after 18:30
+- Future days always show all meals regardless of time
+
 **No images displayed**
 - Check if your Norish instance returns image URLs
 - Verify the images are accessible from your Home Assistant host
-- Check logs: `grep -i norish /config/home-assistant.log`
 
 **Connection error on setup**
 - Confirm the Server URL is reachable from Home Assistant
-- Verify your API key is correct
+- Verify your API key is correct (Settings → Norish → API Keys)
 - Check firewall / reverse proxy settings
 
 **Enable debug logging**
@@ -264,14 +277,15 @@ logger:
 
 ---
 
-## 🆕 What's New in v1.4.0
+## 🆕 What's New in v1.5.1
 
-- **GitHub Actions CI** — automatic HACS and hassfest validation on every push
-- **HA 2024.6+ compatibility** — modern type annotations, proper `async_setup_entry` signatures
-- **Non-blocking I/O** — image caching now runs in an executor (no more event loop blocking)
-- **`codeowners`** set in `manifest.json` (required for HACS default repository)
-- **`integration_type: service`** added to `manifest.json`
-- Code quality improvements across all platform files
+- **Resilient auth handling** — a single transient 401 (e.g. server restart) no longer disables the integration. Only 3 consecutive auth failures trigger the "Reconfigure" notification.
+- **API key expiry detection** — when the key truly expires, Home Assistant shows a clear notification with a direct "Reconfigure" button
+- **Reconfigure without reinstalling** — update your API key via ⋮ → Reconfigure on the integration card
+- **2-minute polling** — syncs with Norish every 2 minutes (was 5)
+- **Auto-reconnect** — recovers automatically from dropped connections
+- **Past meals hidden** — today's meals disappear 30 min after their time slot (future days unaffected)
+- **English as default language** for all log messages and UI strings
 
 See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
