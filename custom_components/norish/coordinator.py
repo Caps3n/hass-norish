@@ -282,11 +282,24 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "stores": {},
         }
 
-        # --- Core data: calendar + groceries (must succeed) ---
         try:
+            # --- Core data: calendar + groceries (must succeed) ---
             await self._fetch_calendar(data)
             await self._fetch_groceries(data)
             await self._fetch_stores(data)
+
+            # --- Recipe details + image caching (optional – non-auth errors are tolerated) ---
+            # ConfigEntryAuthFailed IS allowed to propagate so it contributes to the
+            # consecutive-failure counter even when only recipe endpoints return 401
+            # (e.g. partial-expiry window where calendar still works but recipes don't).
+            try:
+                await self._fetch_recipe_details_for_calendar(data)
+                await self._download_and_cache_images(data)
+            except ConfigEntryAuthFailed:
+                raise  # Propagate auth failures to the outer counter
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning("Norish: recipe details / image caching failed: %s", err)
+
         except ConfigEntryAuthFailed:
             self._consecutive_auth_failures += 1
             _LOGGER.warning(
@@ -304,13 +317,6 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("Norish: failed to fetch core data: %s", err)
             raise UpdateFailed(f"Error fetching Norish data: {err}") from err
-
-        # --- Recipe details + image caching (optional – never blocks core data) ---
-        try:
-            await self._fetch_recipe_details_for_calendar(data)
-            await self._download_and_cache_images(data)
-        except Exception as err:  # noqa: BLE001
-            _LOGGER.warning("Norish: recipe details / image caching failed: %s", err)
 
         self._consecutive_auth_failures = 0  # Reset on successful update
         self._last_successful_update = date.today()
@@ -387,6 +393,8 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         "Norish: loaded recipe '%s'", result.get("name", "unknown")
                     )
                     return result  # type: ignore[no-any-return]
+        except ConfigEntryAuthFailed:
+            raise  # Let auth failures propagate so the counter in _async_update_data is incremented
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("Norish: failed to load recipe %s: %s", recipe_id, err)
         return None

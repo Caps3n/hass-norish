@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.3] - 2026-03-28
+
+### Fixed
+- 🔐 **Auth-Fehler von `recipes.get` werden jetzt korrekt gezählt** – Bei abgelaufenem API-Key gibt es ein Zeitfenster, in dem `calendar.listItems` noch erfolgreich antwortet, aber `recipes.get` bereits 401 liefert. Bisher wurden diese 401-Fehler intern verschluckt (kein Counter-Increment) → Integration lief degradiert weiter ohne Nutzer-Benachrichtigung. Jetzt propagiert `ConfigEntryAuthFailed` aus `recipes.get` korrekt durch den optionalen Block zum Fehler-Counter.
+- 🔐 **Auth failure from `recipes.get` now correctly counted** – When the API key is in a partial-expiry state (`calendar.listItems` still returns 200 but `recipes.get` returns 401), the integration now counts these failures toward the consecutive-failure threshold (3 strikes → "Reconfigure" notification). Previously those 401s were silently swallowed and the integration continued running in a degraded state (no recipe images) without notifying the user.
+
 ## [1.5.2] - 2026-03-26
 
 ### Changed
