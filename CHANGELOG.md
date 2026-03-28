@@ -5,11 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.3] - 2026-03-28
+## [1.5.4] - 2026-03-28
 
 ### Fixed
-- 🔐 **Auth-Fehler von `recipes.get` werden jetzt korrekt gezählt** – Bei abgelaufenem API-Key gibt es ein Zeitfenster, in dem `calendar.listItems` noch erfolgreich antwortet, aber `recipes.get` bereits 401 liefert. Bisher wurden diese 401-Fehler intern verschluckt (kein Counter-Increment) → Integration lief degradiert weiter ohne Nutzer-Benachrichtigung. Jetzt propagiert `ConfigEntryAuthFailed` aus `recipes.get` korrekt durch den optionalen Block zum Fehler-Counter.
-- 🔐 **Auth failure from `recipes.get` now correctly counted** – When the API key is in a partial-expiry state (`calendar.listItems` still returns 200 but `recipes.get` returns 401), the integration now counts these failures toward the consecutive-failure threshold (3 strikes → "Reconfigure" notification). Previously those 401s were silently swallowed and the integration continued running in a degraded state (no recipe images) without notifying the user.
+- 🔐 **Sliding-window auth failure detection** – Replaced the consecutive-failure counter with a time-based sliding window (3 failures within 10 minutes → disable). The old consecutive counter was reset to 0 on every successful poll, so **intermittent** 401 errors (API key sometimes works, sometimes doesn't) could never reach the threshold. Now failures accumulate regardless of intermittent successes and old entries age out naturally.
+- 🔐 **Auth failures from `recipes.get` now propagated** – `ConfigEntryAuthFailed` from the recipe endpoint was silently swallowed by a broad `except Exception`. It now propagates to the auth-failure handler, so partial-expiry scenarios (calendar OK, recipes 401) also trigger the reconfigure notification.
 
 ## [1.5.2] - 2026-03-26
 

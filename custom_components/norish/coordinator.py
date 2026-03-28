@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import os
+import time
 import urllib.parse
 from datetime import date, timedelta
 from typing import Any
@@ -21,6 +22,8 @@ _LOGGER = logging.getLogger(__name__)
 MAX_RETRIES = 3
 RETRY_DELAY_BASE = 2
 IMAGE_CACHE_DIR = "www/norish_images"
+AUTH_FAILURE_WINDOW_SECONDS = 600  # 10 minutes
+AUTH_FAILURE_THRESHOLD = 3  # disable after this many 401s within the window
 
 
 class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -38,9 +41,13 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.store_map: dict[str, str] = {}
         self._last_successful_update: date | None = None
         self._image_cache_path = os.path.join(hass.config.config_dir, IMAGE_CACHE_DIR)
-        # Track consecutive auth failures – only disable integration after 3 in a row
-        # to avoid false positives from transient server hiccups returning 401.
-        self._consecutive_auth_failures: int = 0
+        # Track auth failures within a sliding time window.
+        # Using a time-based approach instead of a consecutive counter because the
+        # Norish API can return *intermittent* 401s (sometimes works, sometimes not)
+        # which resets a consecutive counter on each success, preventing it from ever
+        # reaching the threshold.  With the window approach, 3 failures within 10 min
+        # will disable the integration regardless of intermittent successes.
+        self._auth_failure_timestamps: list[float] = []
 
         # Create image cache directory synchronously – this is a one-time fast filesystem
         # call during coordinator init and safe to do inline.
@@ -301,24 +308,37 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 _LOGGER.warning("Norish: recipe details / image caching failed: %s", err)
 
         except ConfigEntryAuthFailed:
-            self._consecutive_auth_failures += 1
+            now = time.monotonic()
+            self._auth_failure_timestamps.append(now)
+            # Prune entries older than the window
+            cutoff = now - AUTH_FAILURE_WINDOW_SECONDS
+            self._auth_failure_timestamps = [
+                t for t in self._auth_failure_timestamps if t > cutoff
+            ]
+            count = len(self._auth_failure_timestamps)
             _LOGGER.warning(
-                "Norish: auth failure #%d – will disable integration after 3 consecutive failures",
-                self._consecutive_auth_failures,
+                "Norish: auth failure (%d/%d in last %d min) – will disable integration at %d",
+                count,
+                AUTH_FAILURE_THRESHOLD,
+                AUTH_FAILURE_WINDOW_SECONDS // 60,
+                AUTH_FAILURE_THRESHOLD,
             )
-            if self._consecutive_auth_failures >= 3:
-                # Persistent auth failure → notify user to reconfigure
-                self._consecutive_auth_failures = 0
+            if count >= AUTH_FAILURE_THRESHOLD:
+                # Persistent / recurring auth failure → notify user to reconfigure
+                self._auth_failure_timestamps.clear()
                 raise
-            # Transient 401 – keep integration alive, retry on next poll
+            # Not enough failures yet – keep integration alive, retry on next poll
             raise UpdateFailed(
-                f"Norish auth error (attempt {self._consecutive_auth_failures}/3) – retrying"
+                f"Norish auth error ({count}/{AUTH_FAILURE_THRESHOLD} in last "
+                f"{AUTH_FAILURE_WINDOW_SECONDS // 60} min) – retrying"
             ) from None
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("Norish: failed to fetch core data: %s", err)
             raise UpdateFailed(f"Error fetching Norish data: {err}") from err
 
-        self._consecutive_auth_failures = 0  # Reset on successful update
+        # No reset of auth failure timestamps on success – old entries age out
+        # naturally via the time window.  This prevents intermittent 401s from
+        # hiding a dying API key by resetting the counter on each success.
         self._last_successful_update = date.today()
         _LOGGER.info(
             "Norish: loaded %d calendar events, %d grocery items",
