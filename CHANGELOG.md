@@ -5,11 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.4] - 2026-03-28
+## [1.5.5] - 2026-03-29
 
 ### Fixed
-- 🔐 **Sliding-window auth failure detection** – Replaced the consecutive-failure counter with a time-based sliding window (3 failures within 10 minutes → disable). The old consecutive counter was reset to 0 on every successful poll, so **intermittent** 401 errors (API key sometimes works, sometimes doesn't) could never reach the threshold. Now failures accumulate regardless of intermittent successes and old entries age out naturally.
-- 🔐 **Auth failures from `recipes.get` now propagated** – `ConfigEntryAuthFailed` from the recipe endpoint was silently swallowed by a broad `except Exception`. It now propagates to the auth-failure handler, so partial-expiry scenarios (calendar OK, recipes 401) also trigger the reconfigure notification.
+- 🔐 **Sliding-window auth failure detection** – Replaced the consecutive-failure counter with a time-based sliding window (3 failures within 10 minutes → disable). The old consecutive counter was reset to 0 on every successful poll, so intermittent 401 errors could never reach the threshold.
+- 🔄 **Integration no longer stuck in restart loop** – When `recipes.get` returned 401 but core data (calendar, groceries) loaded OK, the propagated `ConfigEntryAuthFailed` caused `UpdateFailed`, which `async_config_entry_first_refresh` converted to `ConfigEntryNotReady`. HA then recreated the coordinator on every retry, resetting the auth-failure counter to zero — creating an infinite restart loop where the counter never reached the threshold. Recipe auth failures are now logged as warnings without blocking the integration. Core endpoint 401s still correctly trigger the sliding-window counter.
 
 ## [1.5.2] - 2026-03-26
 

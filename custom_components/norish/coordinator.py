@@ -294,19 +294,6 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self._fetch_calendar(data)
             await self._fetch_groceries(data)
             await self._fetch_stores(data)
-
-            # --- Recipe details + image caching (optional – non-auth errors are tolerated) ---
-            # ConfigEntryAuthFailed IS allowed to propagate so it contributes to the
-            # consecutive-failure counter even when only recipe endpoints return 401
-            # (e.g. partial-expiry window where calendar still works but recipes don't).
-            try:
-                await self._fetch_recipe_details_for_calendar(data)
-                await self._download_and_cache_images(data)
-            except ConfigEntryAuthFailed:
-                raise  # Propagate auth failures to the outer counter
-            except Exception as err:  # noqa: BLE001
-                _LOGGER.warning("Norish: recipe details / image caching failed: %s", err)
-
         except ConfigEntryAuthFailed:
             now = time.monotonic()
             self._auth_failure_timestamps.append(now)
@@ -335,6 +322,26 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("Norish: failed to fetch core data: %s", err)
             raise UpdateFailed(f"Error fetching Norish data: {err}") from err
+
+        # --- Recipe details + image caching (optional – MUST NOT block core data) ---
+        # Auth failures from recipes.get are logged but NOT propagated, because:
+        # 1. Core data loaded successfully – the integration should run.
+        # 2. Propagating ConfigEntryAuthFailed here causes UpdateFailed, which
+        #    async_config_entry_first_refresh converts to ConfigEntryNotReady,
+        #    which makes HA recreate the coordinator on every retry – resetting
+        #    the auth-failure counter so it never reaches the threshold.
+        # If the API key is truly expired, core endpoints (calendar, groceries)
+        # will also start returning 401 and trigger the sliding-window counter.
+        try:
+            await self._fetch_recipe_details_for_calendar(data)
+            await self._download_and_cache_images(data)
+        except ConfigEntryAuthFailed:
+            _LOGGER.warning(
+                "Norish: recipe endpoint returned 401 – API key may be expiring. "
+                "Core data loaded OK, integration continues."
+            )
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("Norish: recipe details / image caching failed: %s", err)
 
         # No reset of auth failure timestamps on success – old entries age out
         # naturally via the time window.  This prevents intermittent 401s from
