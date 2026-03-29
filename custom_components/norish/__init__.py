@@ -7,7 +7,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, CONF_URL
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import DEFAULT_URL, DOMAIN
@@ -42,9 +42,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         await coordinator.async_config_entry_first_refresh()
         _LOGGER.info("Norish integration loaded successfully")
-    except (ConfigEntryNotReady, ConfigEntryAuthFailed):
-        raise  # Let HA handle these – shows appropriate UI notification
+    except ConfigEntryAuthFailed:
+        raise  # API key definitively expired (3+ failures) – user must reconfigure
     except Exception as err:  # noqa: BLE001
+        # This intentionally catches ConfigEntryNotReady too.
+        # When _async_update_data raises UpdateFailed (auth count < threshold),
+        # async_config_entry_first_refresh converts it to ConfigEntryNotReady.
+        # If we re-raised that, HA would retry async_setup_entry with a NEW
+        # coordinator – resetting the sliding-window counter to zero every time,
+        # so the threshold is never reached (counter stuck at 1/3 forever).
+        # Instead, we load the integration with empty/stale data. The coordinator
+        # persists and retries on the next poll, letting the sliding-window
+        # counter accumulate across polls until it reaches the threshold.
         _LOGGER.warning(
             "Norish: initial data fetch failed (%s) – loading integration anyway", err
         )

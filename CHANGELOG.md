@@ -5,11 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.5] - 2026-03-29
+## [1.5.6] - 2026-03-29
 
 ### Fixed
-- 🔐 **Sliding-window auth failure detection** – Replaced the consecutive-failure counter with a time-based sliding window (3 failures within 10 minutes → disable). The old consecutive counter was reset to 0 on every successful poll, so intermittent 401 errors could never reach the threshold.
-- 🔄 **Integration no longer stuck in restart loop** – When `recipes.get` returned 401 but core data (calendar, groceries) loaded OK, the propagated `ConfigEntryAuthFailed` caused `UpdateFailed`, which `async_config_entry_first_refresh` converted to `ConfigEntryNotReady`. HA then recreated the coordinator on every retry, resetting the auth-failure counter to zero — creating an infinite restart loop where the counter never reached the threshold. Recipe auth failures are now logged as warnings without blocking the integration. Core endpoint 401s still correctly trigger the sliding-window counter.
+- 🔐 **Sliding-window auth failure detection** – Replaced the consecutive-failure counter with a time-based sliding window (3 failures within 10 minutes → disable). The old counter was reset to 0 on every successful poll, so intermittent 401s could never reach the threshold.
+- 🔄 **Fixed infinite restart loop in `__init__.py`** – The root cause of the "counter stuck at 1/3" bug. When `_async_update_data` raised `UpdateFailed` (auth count < threshold), HA's `async_config_entry_first_refresh` converted it to `ConfigEntryNotReady`. The old code re-raised `ConfigEntryNotReady`, causing HA to call `async_setup_entry` again — creating a **new coordinator** and resetting the sliding-window to zero. Now `ConfigEntryNotReady` is caught and the integration loads with empty data instead of restarting. The coordinator persists across polls, allowing the counter to accumulate correctly.
+- 🔇 **Recipe 401s no longer block the integration** – `recipes.get` returning 401 is caught and logged as a warning. Core data (calendar, groceries) loads normally.
 
 ## [1.5.2] - 2026-03-26
 
