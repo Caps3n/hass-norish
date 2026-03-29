@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.6] - 2026-03-29
+## [1.5.7] - 2026-03-29
 
 ### Fixed
 - 🔐 **Sliding-window auth failure detection** – Replaced the consecutive-failure counter with a time-based sliding window (3 failures within 10 minutes → disable). The old counter was reset to 0 on every successful poll, so intermittent 401s could never reach the threshold.
