@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-03-30
+
+### Changed — Complete Rewrite
+- 🔑 **Session-based authentication** — Replaced API key with email/password login via better-auth (`POST /api/auth/sign-in/email`). Sessions are automatically refreshed 1 hour before expiry, and if a session dies mid-use the integration transparently re-logs in.
+- 🔄 **New `NorishAuthManager`** (`auth.py`) — Dedicated authentication manager handling login, session refresh, and re-login. Provides `Cookie` + `Authorization` headers for all API calls.
+- 🏗️ **Rewritten coordinator** — `NorishCoordinator` (formerly `NorishListCoordinator`) uses the auth manager instead of raw headers. On 401 errors it attempts a transparent re-login before raising `ConfigEntryAuthFailed`.
+- ⚡ **30-second polling** — Reduced from 2 minutes for near-real-time updates.
+- 🔧 **Config flow v2** — New schema with email/password fields. Includes `async_step_reauth` and `async_step_reauth_confirm` for seamless re-authentication when sessions expire.
+- 🗂️ **Updated all platform files** — `sensor.py`, `calendar.py`, `camera.py`, `media_player.py`, and `todo.py` updated for the new coordinator class name and data structure.
+- 🌍 **Updated all translations** — `strings.json`, `en.json`, `de.json`, `fr.json`, `es.json`, `it.json` updated for email/password login and reauth flow.
+
+### Migration
+- ⚠️ **Breaking change**: You must **delete** the old Norish integration in HA and **re-add** it with your email and password. The config schema changed from API key to email/password (config flow version bumped from 1 to 2).
+
 ## [1.5.8] - 2026-03-30
 
 ### Fixed

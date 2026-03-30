@@ -12,7 +12,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
-from .coordinator import NorishListCoordinator
+from .coordinator import NorishCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Norish calendar."""
-    coordinator: NorishListCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: NorishCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     async_add_entities([NorishCalendar(coordinator, entry)])
 
 
@@ -39,7 +39,7 @@ class NorishCalendar(CoordinatorEntity, CalendarEntity):
 
     def __init__(
         self,
-        coordinator: NorishListCoordinator,
+        coordinator: NorishCoordinator,
         entry: ConfigEntry,
     ) -> None:
         """Initialize the calendar."""

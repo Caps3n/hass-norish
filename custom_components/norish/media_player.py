@@ -16,7 +16,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
-from .coordinator import NorishListCoordinator
+from .coordinator import NorishCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Norish media players."""
-    coordinator: NorishListCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: NorishCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
 
     players = [
         NorishVideoPlayer(coordinator, entry, "breakfast", "Breakfast"),
@@ -44,7 +44,7 @@ class NorishVideoPlayer(CoordinatorEntity, MediaPlayerEntity):
 
     def __init__(
         self,
-        coordinator: NorishListCoordinator,
+        coordinator: NorishCoordinator,
         entry: ConfigEntry,
         meal_type: str,
         name: str,
@@ -61,7 +61,7 @@ class NorishVideoPlayer(CoordinatorEntity, MediaPlayerEntity):
 
     def _get_base_url(self) -> str:
         """Return the Norish base URL."""
-        return self.coordinator.api_data.get("url", "").rstrip("/")
+        return self.coordinator.auth.base_url
 
     def _get_today_event(self) -> dict | None:
         """Return today's calendar event for this meal type, or None."""

@@ -14,7 +14,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
-from .coordinator import NorishListCoordinator
+from .coordinator import NorishCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Norish cameras."""
-    coordinator: NorishListCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: NorishCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
 
     cameras = [
         NorishRecipeCamera(coordinator, entry, "breakfast", "Breakfast"),
@@ -42,7 +42,7 @@ class NorishRecipeCamera(CoordinatorEntity, Camera):
 
     def __init__(
         self,
-        coordinator: NorishListCoordinator,
+        coordinator: NorishCoordinator,
         entry: ConfigEntry,
         meal_type: str,
         name: str,
@@ -58,7 +58,7 @@ class NorishRecipeCamera(CoordinatorEntity, Camera):
 
     def _get_base_url(self) -> str:
         """Return the Norish base URL."""
-        return self.coordinator.api_data.get("url", "").rstrip("/")
+        return self.coordinator.auth.base_url
 
     @property
     def is_streaming(self) -> bool:
@@ -144,10 +144,12 @@ class NorishRecipeCamera(CoordinatorEntity, Camera):
             image_url = self._get_current_image_url()
             if image_url and not image_url.startswith("/local/"):
                 try:
-                    session = self.coordinator.api_data.get("session")
-                    headers: dict = self.coordinator.api_data.get("headers", {})
+                    from homeassistant.helpers.aiohttp_client import async_get_clientsession
+                    await self.coordinator.auth.ensure_valid_session()
+                    headers: dict = self.coordinator.auth.get_headers()
+                    http_session = async_get_clientsession(self.hass)
 
-                    async with session.get(
+                    async with http_session.get(
                         image_url,
                         headers=headers,
                         timeout=aiohttp.ClientTimeout(total=10),

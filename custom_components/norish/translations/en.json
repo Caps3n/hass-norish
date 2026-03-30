@@ -3,29 +3,40 @@
     "step": {
       "user": {
         "title": "Connect Norish",
-        "description": "Enter the URL and API key of your Norish instance.",
+        "description": "Log in with your Norish account credentials.",
         "data": {
           "url": "Norish URL",
-          "api_key": "API Key"
+          "email": "Email",
+          "password": "Password"
         }
       },
       "reconfigure": {
         "title": "Reconfigure Norish",
-        "description": "Update the URL or API key. You can find your API key in the Norish settings under 'API Keys'.",
+        "description": "Update your Norish login credentials.",
         "data": {
           "url": "Norish URL",
-          "api_key": "API Key"
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate Norish",
+        "description": "Your Norish session has expired. Please log in again.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
         }
       }
     },
     "error": {
       "cannot_connect": "Connection failed. Please check the URL.",
-      "invalid_auth": "Invalid API key. Please create a valid key in the Norish settings under 'API Keys'.",
+      "invalid_auth": "Invalid email or password.",
       "unknown": "Unexpected error."
     },
     "abort": {
       "already_configured": "Norish is already configured.",
-      "reconfigure_successful": "Configuration updated successfully."
+      "reconfigure_successful": "Configuration updated successfully.",
+      "reauth_successful": "Re-authentication successful."
     }
   }
 }

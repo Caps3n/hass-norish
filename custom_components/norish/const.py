@@ -2,7 +2,6 @@
 
 DOMAIN = "norish"
 DEFAULT_URL = "https://norish.example.com"
-UPDATE_INTERVAL_SECONDS = 300
 
 ERROR_CANNOT_CONNECT = "cannot_connect"
 ERROR_INVALID_AUTH = "invalid_auth"

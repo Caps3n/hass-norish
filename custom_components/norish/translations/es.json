@@ -3,16 +3,34 @@
     "step": {
       "user": {
         "title": "Configurar Norish",
-        "description": "Ingrese la URL de su instancia de Norish y su clave API.",
+        "description": "Inicie sesión con sus credenciales de Norish.",
         "data": {
           "url": "URL del servidor",
-          "api_key": "Clave API"
+          "email": "Correo electrónico",
+          "password": "Contraseña"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigurar Norish",
+        "description": "Actualice sus credenciales de Norish.",
+        "data": {
+          "url": "URL del servidor",
+          "email": "Correo electrónico",
+          "password": "Contraseña"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reautenticar Norish",
+        "description": "Su sesión de Norish ha expirado. Por favor, inicie sesión de nuevo.",
+        "data": {
+          "email": "Correo electrónico",
+          "password": "Contraseña"
         }
       }
     },
     "error": {
       "cannot_connect": "Conexión fallida. Por favor, verifique la URL y su conexión de red.",
-      "invalid_auth": "Clave API inválida. Por favor, verifique sus credenciales.",
+      "invalid_auth": "Correo electrónico o contraseña inválidos.",
       "unknown": "Ocurrió un error inesperado."
     },
     "abort": {

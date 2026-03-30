@@ -3,16 +3,34 @@
     "step": {
       "user": {
         "title": "Configura Norish",
-        "description": "Inserisci l'URL della tua istanza Norish e la tua chiave API.",
+        "description": "Accedi con le tue credenziali Norish.",
         "data": {
           "url": "URL del server",
-          "api_key": "Chiave API"
+          "email": "E-mail",
+          "password": "Password"
+        }
+      },
+      "reconfigure": {
+        "title": "Riconfigura Norish",
+        "description": "Aggiorna le tue credenziali Norish.",
+        "data": {
+          "url": "URL del server",
+          "email": "E-mail",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Riautentica Norish",
+        "description": "La tua sessione Norish è scaduta. Accedi di nuovo.",
+        "data": {
+          "email": "E-mail",
+          "password": "Password"
         }
       }
     },
     "error": {
       "cannot_connect": "Connessione fallita. Verifica l'URL e la tua connessione di rete.",
-      "invalid_auth": "Chiave API non valida. Verifica le tue credenziali.",
+      "invalid_auth": "E-mail o password non validi.",
       "unknown": "Si è verificato un errore imprevisto."
     },
     "abort": {

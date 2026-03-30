@@ -13,7 +13,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
-from .coordinator import NorishListCoordinator
+from .coordinator import NorishCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Norish sensor entities."""
-    coordinator: NorishListCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: NorishCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
 
     sensors: list[SensorEntity] = [
         NorishMealSensor(coordinator, entry, "all"),
@@ -77,7 +77,7 @@ class NorishMealSensor(CoordinatorEntity, SensorEntity):
 
     def __init__(
         self,
-        coordinator: NorishListCoordinator,
+        coordinator: NorishCoordinator,
         entry: ConfigEntry,
         meal_type: str = "all",
     ) -> None:
@@ -100,7 +100,7 @@ class NorishMealSensor(CoordinatorEntity, SensorEntity):
 
     def _get_base_url(self) -> str:
         """Return the Norish base URL."""
-        return self.coordinator.api_data.get("url", "").rstrip("/")
+        return self.coordinator.auth.base_url
 
     @property
     def native_value(self) -> str:
@@ -205,7 +205,7 @@ class NorishWeekPlannerSensor(CoordinatorEntity, SensorEntity):
 
     def __init__(
         self,
-        coordinator: NorishListCoordinator,
+        coordinator: NorishCoordinator,
         entry: ConfigEntry,
     ) -> None:
         """Initialize the week planner sensor."""
@@ -217,7 +217,7 @@ class NorishWeekPlannerSensor(CoordinatorEntity, SensorEntity):
 
     def _get_base_url(self) -> str:
         """Return the Norish base URL."""
-        return self.coordinator.api_data.get("url", "").rstrip("/")
+        return self.coordinator.auth.base_url
 
     @property
     def native_value(self) -> str:

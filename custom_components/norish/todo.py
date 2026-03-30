@@ -20,7 +20,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .coordinator import NorishListCoordinator
+from .coordinator import NorishCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Norish todo lists — one per store + one for unsorted items."""
-    coordinator: NorishListCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: NorishCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
 
     # Build the initial set of entities from coordinator data
     entities = _build_entities(coordinator, entry)
@@ -65,7 +65,7 @@ async def async_setup_entry(
 
 
 def _build_entities(
-    coordinator: NorishListCoordinator,
+    coordinator: NorishCoordinator,
     entry: ConfigEntry,
 ) -> list[NorishStoreList]:
     """Build one entity per store from current coordinator data."""
@@ -118,7 +118,7 @@ class NorishStoreList(CoordinatorEntity, TodoListEntity):
 
     def __init__(
         self,
-        coordinator: NorishListCoordinator,
+        coordinator: NorishCoordinator,
         entry: ConfigEntry,
         store_id: str | None,
         store_name: str,
