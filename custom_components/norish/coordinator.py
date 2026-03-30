@@ -13,6 +13,7 @@ from typing import Any
 
 import aiohttp
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -29,13 +30,14 @@ AUTH_FAILURE_THRESHOLD = 3  # disable after this many 401s within the window
 class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Coordinator for the Norish API."""
 
-    def __init__(self, hass: HomeAssistant, api_data: dict[str, Any]) -> None:
+    def __init__(self, hass: HomeAssistant, api_data: dict[str, Any], entry: ConfigEntry) -> None:
         """Initialize the coordinator."""
         super().__init__(
             hass,
             _LOGGER,
             name="Norish API",
             update_interval=timedelta(minutes=2),
+            config_entry=entry,
         )
         self.api_data = api_data
         self.store_map: dict[str, str] = {}
@@ -48,6 +50,7 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # reaching the threshold.  With the window approach, 3 failures within 10 min
         # will disable the integration regardless of intermittent successes.
         self._auth_failure_timestamps: list[float] = []
+        self._auth_permanently_failed: bool = False
 
         # Create image cache directory synchronously – this is a one-time fast filesystem
         # call during coordinator init and safe to do inline.
@@ -283,6 +286,13 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch all Norish data."""
+        # If auth has permanently failed, don't even try – keep raising until
+        # the user reconfigures (which creates a new coordinator instance).
+        if self._auth_permanently_failed:
+            raise ConfigEntryAuthFailed(
+                "Norish API key expired – please reconfigure the integration"
+            )
+
         data: dict[str, Any] = {
             "calendar": [],
             "groceries": [],
@@ -311,8 +321,10 @@ class NorishListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 AUTH_FAILURE_THRESHOLD,
             )
             if count >= AUTH_FAILURE_THRESHOLD:
-                # Persistent / recurring auth failure → notify user to reconfigure
-                self._auth_failure_timestamps.clear()
+                # Persistent / recurring auth failure → notify user to reconfigure.
+                # Set permanent flag so every subsequent poll also raises
+                # ConfigEntryAuthFailed, even if HA doesn't stop polling.
+                self._auth_permanently_failed = True
                 raise
             # Not enough failures yet – keep integration alive, retry on next poll
             raise UpdateFailed(

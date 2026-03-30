@@ -37,7 +37,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "headers": headers,
     }
 
-    coordinator = NorishListCoordinator(hass, api_data)
+    coordinator = NorishListCoordinator(hass, api_data, entry)
 
     try:
         await coordinator.async_config_entry_first_refresh()

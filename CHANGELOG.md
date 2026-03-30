@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.8] - 2026-03-30
+
+### Fixed
+- 🔑 **config_entry now passed to DataUpdateCoordinator** – The root cause of "Neu konfigurieren" never appearing. Without `config_entry`, HA's coordinator silently swallowed `ConfigEntryAuthFailed` on scheduled polls instead of triggering `async_start_reauth`. The counter reached 3/3 but nothing happened; then it reset and started over. Now `config_entry` is passed to `super().__init__()`, so HA correctly triggers the reauth notification.
+- 🛑 **Permanent auth-fail flag** – Once the sliding-window threshold (3 failures in 10 min) is reached, a `_auth_permanently_failed` flag is set. Every subsequent poll immediately raises `ConfigEntryAuthFailed` instead of resetting the counter and starting over. This guarantees the "reconfigure" notification even if HA doesn't stop polling after the first auth failure.
+- 🔄 **Fixed infinite restart loop in `__init__.py`** – `ConfigEntryNotReady` is no longer re-raised during setup, preventing HA from recreating the coordinator and resetting the counter.
+- 🔇 **Recipe 401s isolated from core data** – `recipes.get` returning 401 is caught and logged as a warning without affecting core data loading.
+
 ## [1.5.7] - 2026-03-29
 
 ### Fixed
