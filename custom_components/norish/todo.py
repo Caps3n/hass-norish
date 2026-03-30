@@ -38,7 +38,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Norish todo lists — one per store + one for unsorted items."""
-    coordinator: NorishCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    coordinator: NorishCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     # Build the initial set of entities from coordinator data
     entities = _build_entities(coordinator, entry)

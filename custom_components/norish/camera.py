@@ -25,7 +25,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Norish cameras."""
-    coordinator: NorishCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    coordinator: NorishCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     cameras = [
         NorishRecipeCamera(coordinator, entry, "breakfast", "Breakfast"),
@@ -58,7 +58,7 @@ class NorishRecipeCamera(CoordinatorEntity, Camera):
 
     def _get_base_url(self) -> str:
         """Return the Norish base URL."""
-        return self.coordinator.auth.base_url
+        return self.coordinator.base_url
 
     @property
     def is_streaming(self) -> bool:
@@ -145,8 +145,7 @@ class NorishRecipeCamera(CoordinatorEntity, Camera):
             if image_url and not image_url.startswith("/local/"):
                 try:
                     from homeassistant.helpers.aiohttp_client import async_get_clientsession
-                    await self.coordinator.auth.ensure_valid_session()
-                    headers: dict = self.coordinator.auth.get_headers()
+                    headers: dict = self.coordinator._get_headers()
                     http_session = async_get_clientsession(self.hass)
 
                     async with http_session.get(

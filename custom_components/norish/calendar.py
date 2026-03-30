@@ -30,7 +30,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Norish calendar."""
-    coordinator: NorishCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    coordinator: NorishCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities([NorishCalendar(coordinator, entry)])
 
 

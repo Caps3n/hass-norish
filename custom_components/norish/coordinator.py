@@ -1,9 +1,8 @@
 """Coordinator for the Norish API.
 
-v1.6.0 – Complete rewrite with session-based auth via NorishAuthManager.
-No more sliding-window counters or API key workarounds.  On 401 the
-coordinator attempts a transparent re-login; only if that fails too is
-ConfigEntryAuthFailed raised so HA shows "Reconfigure".
+v1.6.1 – Clean rewrite with API key auth.  On 401 the coordinator
+immediately raises ConfigEntryAuthFailed so HA shows "Reconfigure".
+config_entry is passed to the base class so reauth actually triggers.
 """
 from __future__ import annotations
 
@@ -24,8 +23,6 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .auth import NorishAuthError, NorishAuthManager
-
 _LOGGER = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
@@ -35,13 +32,14 @@ POLL_INTERVAL_SECONDS = 30
 
 
 class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
-    """Coordinator for the Norish API with session-based authentication."""
+    """Coordinator for the Norish API with API key authentication."""
 
     def __init__(
         self,
         hass: HomeAssistant,
         entry: ConfigEntry,
-        auth: NorishAuthManager,
+        base_url: str,
+        api_key: str,
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(
@@ -51,13 +49,22 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(seconds=POLL_INTERVAL_SECONDS),
             config_entry=entry,
         )
-        self.auth = auth
+        self.base_url = base_url.rstrip("/")
+        self._api_key = api_key
         self.store_map: dict[str, str] = {}
         self._last_successful_update: date | None = None
         self._image_cache_path = os.path.join(
             hass.config.config_dir, IMAGE_CACHE_DIR
         )
         os.makedirs(self._image_cache_path, exist_ok=True)
+
+    def _get_headers(self) -> dict[str, str]:
+        """Return headers for authenticated API requests."""
+        return {
+            "x-api-key": self._api_key,
+            "User-Agent": "HomeAssistant/Norish",
+            "Accept": "application/json",
+        }
 
     # ------------------------------------------------------------------
     # tRPC helpers
@@ -89,19 +96,16 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         procedure: str,
         payload: dict[str, Any] | None = None,
     ) -> list[Any] | None:
-        """Fetch data from a tRPC endpoint with retry + auto re-auth."""
+        """Fetch data from a tRPC endpoint with retry."""
         trpc_input = {"0": {"json": payload if payload is not None else None}}
         encoded = urllib.parse.quote(
             json.dumps(trpc_input, separators=(",", ":"))
         )
-        url = f"{self.auth.base_url}/api/trpc/{procedure}?batch=1&input={encoded}"
+        url = f"{self.base_url}/api/trpc/{procedure}?batch=1&input={encoded}"
         session = async_get_clientsession(self.hass)
+        headers = self._get_headers()
 
         for attempt in range(MAX_RETRIES):
-            # Ensure session is valid before every attempt
-            await self.auth.ensure_valid_session()
-            headers = self.auth.get_headers()
-
             try:
                 async with session.get(
                     url,
@@ -109,21 +113,12 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     timeout=aiohttp.ClientTimeout(total=10),
                 ) as resp:
                     if resp.status == 401:
-                        _LOGGER.warning(
-                            "Norish: 401 for %s – attempting re-login",
+                        _LOGGER.error(
+                            "Norish: 401 for %s – API key invalid or expired",
                             procedure,
                         )
-                        try:
-                            await self.auth.ensure_valid_session()
-                        except NorishAuthError:
-                            raise ConfigEntryAuthFailed(
-                                "Norish session expired and re-login failed"
-                            ) from None
-                        # Retry with fresh session
-                        if attempt < MAX_RETRIES - 1:
-                            continue
                         raise ConfigEntryAuthFailed(
-                            "Norish: persistent 401 after re-login"
+                            "Norish API key invalid or expired"
                         )
 
                     if resp.status == 404:
@@ -217,11 +212,9 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         payload: dict[str, Any],
     ) -> list[Any] | None:
         """POST a mutation to a tRPC endpoint."""
-        await self.auth.ensure_valid_session()
-
-        url = f"{self.auth.base_url}/api/trpc/{procedure}?batch=1"
+        url = f"{self.base_url}/api/trpc/{procedure}?batch=1"
         headers = {
-            **self.auth.get_headers(),
+            **self._get_headers(),
             "Content-Type": "application/json",
         }
         body = json.dumps({"0": {"json": payload}})
@@ -234,11 +227,11 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ) as resp:
                 if resp.status == 401:
                     _LOGGER.error(
-                        "Norish: POST %s – 401, session may have expired",
+                        "Norish: POST %s – 401, API key invalid or expired",
                         procedure,
                     )
                     raise ConfigEntryAuthFailed(
-                        "Norish session expired on POST"
+                        "Norish API key invalid or expired on POST"
                     )
                 if resp.status not in (200, 201):
                     text = await resp.text()
@@ -293,8 +286,7 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch all Norish data.
 
-        On 401: attempts transparent re-login.  If re-login also fails,
-        raises ConfigEntryAuthFailed so HA shows 'Reconfigure'.
+        On 401: raises ConfigEntryAuthFailed so HA shows 'Reconfigure'.
         On network errors: raises UpdateFailed so HA retries on next poll.
         """
         data: dict[str, Any] = {
@@ -308,7 +300,7 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self._fetch_groceries(data)
             await self._fetch_stores(data)
         except ConfigEntryAuthFailed:
-            # Session is dead and re-login failed → user must reconfigure
+            # API key is invalid → user must reconfigure
             raise
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("Norish: failed to fetch core data: %s", err)
@@ -469,7 +461,6 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _download_and_cache_images(self, data: dict[str, Any]) -> None:
         """Download and locally cache recipe images."""
         calendar_items: list[dict[str, Any]] = data.get("calendar", [])
-        base_url = self.auth.base_url
 
         for event in calendar_items:
             recipe = event.get("_recipe") or {}
@@ -482,7 +473,7 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 continue
 
             image_url = (
-                f"{base_url}{image_path}"
+                f"{self.base_url}{image_path}"
                 if image_path.startswith("/")
                 else image_path
             )
@@ -507,8 +498,7 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if file_exists:
                 return f"/local/norish_images/{filename}"
 
-            await self.auth.ensure_valid_session()
-            headers = self.auth.get_headers()
+            headers = self._get_headers()
             session = async_get_clientsession(self.hass)
 
             async with session.get(

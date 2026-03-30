@@ -58,7 +58,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Norish sensor entities."""
-    coordinator: NorishCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    coordinator: NorishCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     sensors: list[SensorEntity] = [
         NorishMealSensor(coordinator, entry, "all"),
@@ -100,7 +100,7 @@ class NorishMealSensor(CoordinatorEntity, SensorEntity):
 
     def _get_base_url(self) -> str:
         """Return the Norish base URL."""
-        return self.coordinator.auth.base_url
+        return self.coordinator.base_url
 
     @property
     def native_value(self) -> str:
@@ -217,7 +217,7 @@ class NorishWeekPlannerSensor(CoordinatorEntity, SensorEntity):
 
     def _get_base_url(self) -> str:
         """Return the Norish base URL."""
-        return self.coordinator.auth.base_url
+        return self.coordinator.base_url
 
     @property
     def native_value(self) -> str:
