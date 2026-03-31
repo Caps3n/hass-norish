@@ -1,7 +1,8 @@
 """Coordinator for the Norish API.
 
-v1.6.3 – Safer poll interval.
-- Poll interval increased from 300 s → 900 s (15 min, 4 polls/hour)
+v1.6.3 – Configurable poll interval + rate-limit fix.
+- Poll interval is now user-configurable via the Options flow (1/5/10/15/30/60 min)
+  and falls back to DEFAULT_POLL_INTERVAL (15 min) when not set.
 - Store list is cached in memory; only re-fetched every 24 hours
 - Recipe details are cached; only re-fetched when the set of recipe IDs changes
 - HTTP 429 (rate-limited) now raises UpdateFailed instead of silently returning
@@ -27,15 +28,13 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from .const import CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL
+
 _LOGGER = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
 RETRY_DELAY_BASE = 2
 IMAGE_CACHE_DIR = "www/norish_images"
-
-# Poll every 15 minutes — very safe margin under the Norish rate limit of 500 req/hour.
-# At 4 polls/hour × 3 requests each = ~12 req/hour (was 120 × 10 = 1 200/hour).
-POLL_INTERVAL_SECONDS = 900
 
 # How often to re-fetch the store list (it basically never changes).
 STORE_REFRESH_HOURS = 24
@@ -52,11 +51,14 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         api_key: str,
     ) -> None:
         """Initialize the coordinator."""
+        poll_interval: int = entry.options.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL)
+        _LOGGER.debug("Norish: poll interval set to %d seconds", poll_interval)
+
         super().__init__(
             hass,
             _LOGGER,
             name="Norish API",
-            update_interval=timedelta(seconds=POLL_INTERVAL_SECONDS),
+            update_interval=timedelta(seconds=poll_interval),
             config_entry=entry,
         )
         self.base_url = base_url.rstrip("/")

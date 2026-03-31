@@ -1,6 +1,6 @@
 """Config flow for Norish integration.
 
-v1.6.1 – Uses API key authentication.
+v1.6.3 – Options flow added: configurable poll interval (1/5/10/15/30/60 min).
 """
 from __future__ import annotations
 
@@ -14,8 +14,23 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_API_KEY, CONF_URL
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.selector import (
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+    SelectOptionDict,
+)
 
-from .const import DOMAIN, DEFAULT_URL, ERROR_CANNOT_CONNECT, ERROR_INVALID_AUTH, ERROR_UNKNOWN
+from .const import (
+    CONF_POLL_INTERVAL,
+    DEFAULT_POLL_INTERVAL,
+    DEFAULT_URL,
+    DOMAIN,
+    ERROR_CANNOT_CONNECT,
+    ERROR_INVALID_AUTH,
+    ERROR_UNKNOWN,
+    POLL_INTERVAL_OPTIONS,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,10 +65,28 @@ async def _test_api_key(hass, base_url: str, api_key: str) -> str | None:
     return None
 
 
+def _poll_interval_selector() -> SelectSelector:
+    """Return a dropdown selector for the poll interval."""
+    options = [
+        SelectOptionDict(value=str(seconds), label=label)
+        for seconds, label in POLL_INTERVAL_OPTIONS.items()
+    ]
+    return SelectSelector(
+        SelectSelectorConfig(options=options, mode=SelectSelectorMode.LIST)
+    )
+
+
 class NorishConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Norish."""
 
     VERSION = 1
+
+    @staticmethod
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> config_entries.OptionsFlow:
+        """Return the options flow handler."""
+        return NorishOptionsFlow(config_entry)
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -159,4 +192,43 @@ class NorishConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="reauth_confirm",
             data_schema=data_schema,
             errors=errors,
+        )
+
+
+class NorishOptionsFlow(config_entries.OptionsFlow):
+    """Handle Norish options (poll interval)."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Initialize the options flow."""
+        self._config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Show the options form."""
+        if user_input is not None:
+            # Convert the string value from the selector back to int
+            poll_interval = int(user_input[CONF_POLL_INTERVAL])
+            return self.async_create_entry(
+                title="",
+                data={CONF_POLL_INTERVAL: poll_interval},
+            )
+
+        # Current value (default 15 min)
+        current_interval = str(
+            self._config_entry.options.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL)
+        )
+
+        options_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_POLL_INTERVAL,
+                    default=current_interval,
+                ): _poll_interval_selector(),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=options_schema,
         )
