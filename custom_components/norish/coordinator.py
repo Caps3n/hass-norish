@@ -1,7 +1,7 @@
 """Coordinator for the Norish API.
 
-v1.6.2 – Rate-limit fix.
-- Poll interval increased from 30 s → 300 s (12 polls/hour instead of 120)
+v1.6.3 – Safer poll interval.
+- Poll interval increased from 300 s → 900 s (15 min, 4 polls/hour)
 - Store list is cached in memory; only re-fetched every 24 hours
 - Recipe details are cached; only re-fetched when the set of recipe IDs changes
 - HTTP 429 (rate-limited) now raises UpdateFailed instead of silently returning
@@ -33,9 +33,9 @@ MAX_RETRIES = 3
 RETRY_DELAY_BASE = 2
 IMAGE_CACHE_DIR = "www/norish_images"
 
-# Poll every 5 minutes — well within the Norish rate limit of 500 req/hour.
-# At 12 polls/hour × 3 requests each = ~36 req/hour (was 120 × 10 = 1 200/hour).
-POLL_INTERVAL_SECONDS = 300
+# Poll every 15 minutes — very safe margin under the Norish rate limit of 500 req/hour.
+# At 4 polls/hour × 3 requests each = ~12 req/hour (was 120 × 10 = 1 200/hour).
+POLL_INTERVAL_SECONDS = 900
 
 # How often to re-fetch the store list (it basically never changes).
 STORE_REFRESH_HOURS = 24
