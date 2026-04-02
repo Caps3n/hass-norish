@@ -40,12 +40,9 @@
     "step": {
       "init": {
         "title": "Opzioni Norish",
-        "description": "Scegli quali tipi di pasti visualizzare.",
+        "description": "Imposta la frequenza con cui Norish aggiorna i dati.",
         "data": {
-          "show_breakfast": "Mostra colazione",
-          "show_lunch": "Mostra pranzo",
-          "show_dinner": "Mostra cena",
-          "show_snack": "Mostra spuntini"
+          "poll_interval": "Intervallo di aggiornamento"
         }
       }
     }

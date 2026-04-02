@@ -40,12 +40,9 @@
     "step": {
       "init": {
         "title": "Options Norish",
-        "description": "Choisissez les types de repas à afficher.",
+        "description": "Définissez la fréquence à laquelle Norish actualise les données.",
         "data": {
-          "show_breakfast": "Afficher le petit-déjeuner",
-          "show_lunch": "Afficher le déjeuner",
-          "show_dinner": "Afficher le dîner",
-          "show_snack": "Afficher les collations"
+          "poll_interval": "Intervalle de mise à jour"
         }
       }
     }

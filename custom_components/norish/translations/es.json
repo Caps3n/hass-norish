@@ -40,12 +40,9 @@
     "step": {
       "init": {
         "title": "Opciones de Norish",
-        "description": "Elija qué tipos de comidas se deben mostrar.",
+        "description": "Elige con qué frecuencia Norish actualiza los datos.",
         "data": {
-          "show_breakfast": "Mostrar desayuno",
-          "show_lunch": "Mostrar almuerzo",
-          "show_dinner": "Mostrar cena",
-          "show_snack": "Mostrar meriendas"
+          "poll_interval": "Intervalo de actualización"
         }
       }
     }

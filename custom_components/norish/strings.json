@@ -35,5 +35,16 @@
       "reconfigure_successful": "Configuration updated successfully.",
       "reauth_successful": "Re-authentication successful."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Norish Options",
+        "description": "Adjust how often Norish polls for updates. Lower values mean more frequent updates but use more API requests.",
+        "data": {
+          "poll_interval": "Update interval"
+        }
+      }
+    }
   }
 }
