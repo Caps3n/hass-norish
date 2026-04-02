@@ -1,6 +1,6 @@
 """Config flow for Norish integration.
 
-v1.6.4 – Options flow added: configurable poll interval (1/5/10/15/30/60 min).
+v1.6.5 – Options flow fixed for HA 2024.11+ API (self.config_entry, @callback).
 """
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_API_KEY, CONF_URL
+from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
@@ -82,11 +83,12 @@ class NorishConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     @staticmethod
+    @callback
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
         """Return the options flow handler."""
-        return NorishOptionsFlow(config_entry)
+        return NorishOptionsFlow()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -196,11 +198,10 @@ class NorishConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class NorishOptionsFlow(config_entries.OptionsFlow):
-    """Handle Norish options (poll interval)."""
+    """Handle Norish options (poll interval).
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize the options flow."""
-        self._config_entry = config_entry
+    Uses self.config_entry (HA 2024.11+ API) — no __init__ needed.
+    """
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -214,9 +215,9 @@ class NorishOptionsFlow(config_entries.OptionsFlow):
                 data={CONF_POLL_INTERVAL: poll_interval},
             )
 
-        # Current value (default 15 min)
+        # Current value (default 15 min) — self.config_entry provided by HA
         current_interval = str(
-            self._config_entry.options.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL)
+            self.config_entry.options.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL)
         )
 
         options_schema = vol.Schema(
