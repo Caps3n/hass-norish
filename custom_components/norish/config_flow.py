@@ -1,6 +1,6 @@
 """Config flow for Norish integration.
 
-v1.6.3 – Options flow added: configurable poll interval (1/5/10/15/30/60 min).
+v1.6.4 – Options flow added: configurable poll interval (1/5/10/15/30/60 min).
 """
 from __future__ import annotations
 

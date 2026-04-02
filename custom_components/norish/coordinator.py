@@ -1,6 +1,6 @@
 """Coordinator for the Norish API.
 
-v1.6.3 – Configurable poll interval + rate-limit fix.
+v1.6.4 – Configurable poll interval + rate-limit fix.
 - Poll interval is now user-configurable via the Options flow (1/5/10/15/30/60 min)
   and falls back to DEFAULT_POLL_INTERVAL (15 min) when not set.
 - Store list is cached in memory; only re-fetched every 24 hours
