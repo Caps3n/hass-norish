@@ -1,13 +1,15 @@
 """Coordinator for the Norish API.
 
-v1.6.5 – Configurable poll interval + rate-limit fix.
-- Poll interval is now user-configurable via the Options flow (1/5/10/15/30/60 min)
-  and falls back to DEFAULT_POLL_INTERVAL (15 min) when not set.
-- Store list is cached in memory; only re-fetched every 24 hours
-- Recipe details are cached; only re-fetched when the set of recipe IDs changes
-- HTTP 429 (rate-limited) now raises UpdateFailed instead of silently returning
-  None, so Home Assistant retries on the next poll interval instead of marking
-  all entities unavailable permanently.
+v1.6.6 – Transient 401 resilience.
+- A single HTTP 401 no longer immediately stops all polling and requires manual
+  re-authentication.  Instead, consecutive 401 failures are counted; only after
+  MAX_AUTH_FAILURES (3) in a row is ConfigEntryAuthFailed raised so HA shows the
+  'Reconfigure' banner.  A successful request resets the counter.
+- All v1.6.5 features retained:
+  * Poll interval user-configurable via the Options flow (1/5/10/15/30/60 min)
+  * Store list cached in memory, refreshed every 24 hours
+  * Recipe details cached until the calendar recipe-ID set changes
+  * HTTP 429 raises UpdateFailed (retried next interval, not permanent failure)
 """
 from __future__ import annotations
 
@@ -38,6 +40,12 @@ IMAGE_CACHE_DIR = "www/norish_images"
 
 # How often to re-fetch the store list (it basically never changes).
 STORE_REFRESH_HOURS = 24
+
+# How many consecutive 401 responses before we give up and ask the user to
+# re-authenticate.  A single transient 401 is treated as a temporary failure
+# (UpdateFailed) so HA retries on the next poll interval instead of stopping
+# all polling immediately.
+MAX_AUTH_FAILURES = 3
 
 
 class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -79,6 +87,10 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Only invalidated when the set of recipe IDs in the calendar changes.
         self._cached_recipes: dict[str, Any] = {}
         self._cached_recipe_ids: frozenset[str] = frozenset()
+
+        # Consecutive 401 counter.  Resets to 0 on any successful request.
+        # ConfigEntryAuthFailed is only raised once this reaches MAX_AUTH_FAILURES.
+        self._consecutive_auth_failures: int = 0
 
     def _get_headers(self) -> dict[str, str]:
         """Return headers for authenticated API requests."""
@@ -135,12 +147,26 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     timeout=aiohttp.ClientTimeout(total=10),
                 ) as resp:
                     if resp.status == 401:
-                        _LOGGER.error(
-                            "Norish: 401 for %s – API key invalid or expired",
+                        self._consecutive_auth_failures += 1
+                        _LOGGER.warning(
+                            "Norish: 401 for %s – consecutive auth failures: %d/%d",
                             procedure,
+                            self._consecutive_auth_failures,
+                            MAX_AUTH_FAILURES,
                         )
-                        raise ConfigEntryAuthFailed(
-                            "Norish API key invalid or expired"
+                        if self._consecutive_auth_failures >= MAX_AUTH_FAILURES:
+                            _LOGGER.error(
+                                "Norish: %d consecutive 401s – API key invalid or "
+                                "expired. Re-authentication required.",
+                                self._consecutive_auth_failures,
+                            )
+                            raise ConfigEntryAuthFailed(
+                                "Norish API key invalid or expired"
+                            )
+                        raise UpdateFailed(
+                            f"Norish: transient 401 for {procedure} "
+                            f"({self._consecutive_auth_failures}/{MAX_AUTH_FAILURES} "
+                            "consecutive failures, will retry)"
                         )
 
                     if resp.status == 429:
@@ -188,6 +214,8 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         )
                         return None
 
+                    # Successful response – reset the auth failure counter
+                    self._consecutive_auth_failures = 0
                     return await resp.json()  # type: ignore[no-any-return]
 
             except (ConfigEntryAuthFailed, UpdateFailed):
@@ -263,12 +291,20 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as resp:
                 if resp.status == 401:
-                    _LOGGER.error(
-                        "Norish: POST %s – 401, API key invalid or expired",
+                    self._consecutive_auth_failures += 1
+                    _LOGGER.warning(
+                        "Norish: POST %s – 401, consecutive auth failures: %d/%d",
                         procedure,
+                        self._consecutive_auth_failures,
+                        MAX_AUTH_FAILURES,
                     )
-                    raise ConfigEntryAuthFailed(
-                        "Norish API key invalid or expired on POST"
+                    if self._consecutive_auth_failures >= MAX_AUTH_FAILURES:
+                        raise ConfigEntryAuthFailed(
+                            "Norish API key invalid or expired on POST"
+                        )
+                    raise UpdateFailed(
+                        f"Norish: transient 401 for POST {procedure} "
+                        f"({self._consecutive_auth_failures}/{MAX_AUTH_FAILURES})"
                     )
                 if resp.status == 429:
                     _LOGGER.warning(
@@ -284,6 +320,7 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         procedure, resp.status, text[:200],
                     )
                     return None
+                self._consecutive_auth_failures = 0
                 return await resp.json()  # type: ignore[no-any-return]
         except aiohttp.ClientError as err:
             _LOGGER.error("Norish: POST %s network error: %s", procedure, err)
