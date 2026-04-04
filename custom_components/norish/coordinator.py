@@ -1,11 +1,11 @@
 """Coordinator for the Norish API.
 
-v1.6.6 – Transient 401 resilience.
-- A single HTTP 401 no longer immediately stops all polling and requires manual
-  re-authentication.  Instead, consecutive 401 failures are counted; only after
-  MAX_AUTH_FAILURES (3) in a row is ConfigEntryAuthFailed raised so HA shows the
-  'Reconfigure' banner.  A successful request resets the counter.
-- All v1.6.5 features retained:
+v1.6.7 – Increased request timeout + transient-401 resilience.
+- Request timeout raised from 10 s to 30 s to handle slow Norish API responses
+  without false-positive "timeout after 3 attempts" errors in the HA log.
+- All v1.6.6 features retained:
+  * Consecutive-401 counter: ConfigEntryAuthFailed is only raised after
+    MAX_AUTH_FAILURES (3) consecutive 401s; a single transient 401 is retried.
   * Poll interval user-configurable via the Options flow (1/5/10/15/30/60 min)
   * Store list cached in memory, refreshed every 24 hours
   * Recipe details cached until the calendar recipe-ID set changes
@@ -144,7 +144,7 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 async with session.get(
                     url,
                     headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=10),
+                    timeout=aiohttp.ClientTimeout(total=30),
                 ) as resp:
                     if resp.status == 401:
                         self._consecutive_auth_failures += 1
@@ -288,7 +288,7 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             async with session.post(
                 url, headers=headers, data=body,
-                timeout=aiohttp.ClientTimeout(total=10),
+                timeout=aiohttp.ClientTimeout(total=30),
             ) as resp:
                 if resp.status == 401:
                     self._consecutive_auth_failures += 1
