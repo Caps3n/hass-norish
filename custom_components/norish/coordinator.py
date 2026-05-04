@@ -1,5 +1,14 @@
 """Coordinator for the Norish API.
 
+v1.6.8 – Exponential reconnect backoff.
+- After any failure (401, timeout, connection error) the update_interval is
+  temporarily increased so HA waits longer before the next retry:
+    1st failure  → 60 s
+    2nd failure  → 5 min
+    3rd+ failure → 10 min  (until MAX_AUTH_FAILURES → ConfigEntryAuthFailed)
+- On the first successful response the interval resets to the user-configured
+  value automatically.
+
 v1.6.7 – Increased request timeout + transient-401 resilience.
 - Request timeout raised from 10 s to 30 s to handle slow Norish API responses
   without false-positive "timeout after 3 attempts" errors in the HA log.
@@ -47,6 +56,11 @@ STORE_REFRESH_HOURS = 24
 # all polling immediately.
 MAX_AUTH_FAILURES = 3
 
+# Exponential reconnect backoff: seconds to wait after consecutive failures.
+# Index 0 → 1st failure, index 1 → 2nd failure, last entry used for all
+# subsequent failures until MAX_AUTH_FAILURES is reached.
+RECONNECT_BACKOFF_SECONDS: list[int] = [60, 300, 600]
+
 
 class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Coordinator for the Norish API with API key authentication."""
@@ -92,6 +106,12 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # ConfigEntryAuthFailed is only raised once this reaches MAX_AUTH_FAILURES.
         self._consecutive_auth_failures: int = 0
 
+        # Reconnect backoff: counts any type of failure across update cycles.
+        # Resets to 0 on the first successful _async_update_data call.
+        self._consecutive_failures: int = 0
+        # Remember the user-configured interval so we can restore it after backoff.
+        self._normal_update_interval = timedelta(seconds=poll_interval)
+
     def _get_headers(self) -> dict[str, str]:
         """Return headers for authenticated API requests."""
         return {
@@ -99,6 +119,34 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "User-Agent": "HomeAssistant/Norish",
             "Accept": "application/json",
         }
+
+    def _apply_reconnect_backoff(self) -> None:
+        """Adjust update_interval based on consecutive failure count.
+
+        Called after every _async_update_data completion (success or failure).
+        On success (failures == 0) the normal interval is restored.
+        On failure the interval is increased exponentially so HA waits longer
+        before the next retry, reducing wasted API requests against a dead key.
+        """
+        if self._consecutive_failures <= 0:
+            if self.update_interval != self._normal_update_interval:
+                _LOGGER.info(
+                    "Norish: connection restored – resuming normal poll interval (%ds)",
+                    int(self._normal_update_interval.total_seconds()),
+                )
+            self.update_interval = self._normal_update_interval
+            return
+
+        idx = min(self._consecutive_failures - 1, len(RECONNECT_BACKOFF_SECONDS) - 1)
+        backoff = RECONNECT_BACKOFF_SECONDS[idx]
+        new_interval = timedelta(seconds=backoff)
+        if self.update_interval != new_interval:
+            _LOGGER.warning(
+                "Norish: failure #%d – slowing down reconnect, next attempt in %ds",
+                self._consecutive_failures,
+                backoff,
+            )
+        self.update_interval = new_interval
 
     # ------------------------------------------------------------------
     # tRPC helpers
@@ -370,6 +418,7 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         On 401: raises ConfigEntryAuthFailed so HA shows 'Reconfigure'.
         On 429: raises UpdateFailed so HA retries on the next poll interval.
         On network errors: raises UpdateFailed so HA retries on next poll.
+        Backoff: update_interval grows after each failure and resets on success.
         """
         data: dict[str, Any] = {
             "calendar": [],
@@ -383,12 +432,18 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self._fetch_stores_cached(data)
         except ConfigEntryAuthFailed:
             # API key is invalid → user must reconfigure
+            self._consecutive_failures += 1
+            self._apply_reconnect_backoff()
             raise
         except UpdateFailed:
             # Rate-limit or explicit failure → HA will retry on next interval
+            self._consecutive_failures += 1
+            self._apply_reconnect_backoff()
             raise
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("Norish: failed to fetch core data: %s", err)
+            self._consecutive_failures += 1
+            self._apply_reconnect_backoff()
             raise UpdateFailed(f"Error fetching Norish data: {err}") from err
 
         # --- Optional: recipe details + image caching ---
@@ -407,6 +462,11 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.warning(
                 "Norish: recipe details / image caching failed: %s", err
             )
+
+        # Success – reset all failure counters and restore normal poll interval
+        self._consecutive_failures = 0
+        self._consecutive_auth_failures = 0
+        self._apply_reconnect_backoff()
 
         self._last_successful_update = date.today()
         _LOGGER.info(

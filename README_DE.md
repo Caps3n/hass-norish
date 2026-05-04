@@ -220,14 +220,11 @@ logger:
 
 ---
 
-## 🆕 Neu in v1.5.1
+## 🆕 Neu in v1.6.8
 
-- **Robuste Auth-Behandlung** — ein einzelner kurzzeitiger 401-Fehler deaktiviert die Integration nicht mehr; erst 3 aufeinanderfolgende Fehler lösen „Neu konfigurieren" aus
-- **API-Key-Ablauf-Erkennung** — bei echtem Ablauf zeigt HA eine klare Benachrichtigung mit direktem „Neu konfigurieren"-Button
-- **Neu konfigurieren ohne Neuinstallation** — API-Key über ⋮ → Neu konfigurieren aktualisieren
-- **2-Minuten-Polling** — synchronisiert alle 2 Minuten (war 5)
-- **Auto-Reconnect** — erholt sich automatisch von unterbrochenen Verbindungen
-- **Vergangene Mahlzeiten ausblenden** — heutige Mahlzeiten verschwinden 30 min nach ihrem Zeitfenster
+- **Exponentielles Reconnect-Backoff** — nach jedem Fehler (401, Timeout, Verbindungsabbruch) wartet die Integration länger bevor sie es erneut versucht: 1. Fehler → 60 s, 2. → 5 min, 3.+ → 10 min
+- **Automatische Wiederherstellung** — beim ersten erfolgreichen Update kehrt das Poll-Intervall automatisch auf den konfigurierten Wert zurück, kein Neustart nötig
+- **Klarere Log-Meldungen** — Backoff-Änderungen und Verbindungswiederherstellungen sind im HA-Log sichtbar, ohne Debug-Logging aktivieren zu müssen
 
 Vollständige Versionshistorie in [CHANGELOG.md](CHANGELOG.md)
 

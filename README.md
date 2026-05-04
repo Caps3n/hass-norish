@@ -278,15 +278,11 @@ logger:
 
 ---
 
-## 🆕 What's New in v1.5.1
+## 🆕 What's New in v1.6.8
 
-- **Resilient auth handling** — a single transient 401 (e.g. server restart) no longer disables the integration. Only 3 consecutive auth failures trigger the "Reconfigure" notification.
-- **API key expiry detection** — when the key truly expires, Home Assistant shows a clear notification with a direct "Reconfigure" button
-- **Reconfigure without reinstalling** — update your API key via ⋮ → Reconfigure on the integration card
-- **2-minute polling** — syncs with Norish every 2 minutes (was 5)
-- **Auto-reconnect** — recovers automatically from dropped connections
-- **Past meals hidden** — today's meals disappear 30 min after their time slot (future days unaffected)
-- **English as default language** for all log messages and UI strings
+- **Exponential reconnect backoff** — after any error (401, timeout, connection drop) the integration automatically slows down before retrying: 1st failure → 60 s, 2nd → 5 min, 3rd+ → 10 min
+- **Auto-restore** — on the first successful response the poll interval resets to your configured value automatically, no restart needed
+- **Clearer log messages** — backoff changes and connection restores are visible in the HA log without enabling debug mode
 
 See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.8] - 2026-05-04
+
+### Changed — Exponential Reconnect Backoff
+- ⏳ **Slower reconnect on failure** — after any error (401, timeout, connection drop) the
+  poll interval is automatically increased before the next attempt:
+  - 1st consecutive failure → retry in 60 s
+  - 2nd consecutive failure → retry in 5 min
+  - 3rd+ consecutive failure → retry in 10 min (until `ConfigEntryAuthFailed` is raised)
+- ✅ **Auto-restore** — on the first successful response the interval resets to the
+  user-configured value (default 15 min) without requiring a restart.
+- 🪵 **Clearer log messages** — backoff changes and connection restores are logged at
+  WARNING / INFO level so they are visible without enabling debug mode.
+
+---
+
 ## [1.6.1] - 2026-03-30
 
 ### Changed — Clean Rewrite
