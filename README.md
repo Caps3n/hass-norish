@@ -278,11 +278,12 @@ logger:
 
 ---
 
-## 🆕 What's New in v1.6.8
+## 🆕 What's New in v1.6.9
 
-- **Exponential reconnect backoff** — after any error (401, timeout, connection drop) the integration automatically slows down before retrying: 1st failure → 60 s, 2nd → 5 min, 3rd+ → 10 min
-- **Auto-restore** — on the first successful response the poll interval resets to your configured value automatically, no restart needed
-- **Clearer log messages** — backoff changes and connection restores are visible in the HA log without enabling debug mode
+- **Automatic API key renewal** — when the key is exhausted the integration silently creates a new one using your stored Norish credentials. No manual "Reconfigure" needed.
+- **Optional credentials** — enter your Norish email + password in the setup or reconfigure form to enable auto-renewal. The password is stored as a masked field and never shown in plaintext.
+- **Fallback** — if no credentials are stored, the existing behaviour is kept: after 3 consecutive 401 errors Home Assistant shows the "Reconfigure" notification.
+- **Exponential reconnect backoff** (v1.6.8) — 1st failure → 60 s, 2nd → 5 min, 3rd+ → 10 min before next retry; auto-restores to normal interval on success.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 

@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.9] - 2026-05-09
+
+### Added — Automatic API Key Renewal
+- 🔑 **Auto-renewal of expired API keys** — when the Norish API key is exhausted
+  (Better Auth's `requestCount >= rateLimitMax` with no `refillInterval`) the
+  integration can now silently renew it without any user interaction:
+  1. Sign in to Norish with stored email + password
+  2. Create a new API key named "HomeAssistant"
+  3. Persist the new key in the config entry and resume polling
+- 🛡️ **Opt-in, fully optional** — if no credentials are stored the existing
+  behaviour is preserved (Reconfigure notification after 3 consecutive 401s).
+- 🔐 **Password field** — shown as a masked input in the setup and reconfigure
+  forms so the password is never visible in plaintext.
+- 🌍 **All 5 languages updated** — EN, DE, FR, ES, IT.
+
+---
+
 ## [1.6.8] - 2026-05-04
 
 ### Changed — Exponential Reconnect Backoff

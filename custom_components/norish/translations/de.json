@@ -3,18 +3,22 @@
     "step": {
       "user": {
         "title": "Norish verbinden",
-        "description": "Gib deine Norish Server-URL und deinen API-Key ein.",
+        "description": "Gib deine Norish Server-URL und deinen API-Key ein. Optional: Norish-Zugangsdaten eintragen, damit der API-Key automatisch erneuert wird wenn er abläuft.",
         "data": {
           "url": "Norish URL",
-          "api_key": "API-Key"
+          "api_key": "API-Key",
+          "norish_email": "Norish E-Mail (optional)",
+          "norish_password": "Norish Passwort (optional)"
         }
       },
       "reconfigure": {
         "title": "Norish neu konfigurieren",
-        "description": "Aktualisiere deine Norish URL oder deinen API-Key.",
+        "description": "Aktualisiere deine Norish URL, deinen API-Key oder die Zugangsdaten für automatische Erneuerung.",
         "data": {
           "url": "Norish URL",
-          "api_key": "API-Key"
+          "api_key": "API-Key",
+          "norish_email": "Norish E-Mail (optional)",
+          "norish_password": "Norish Passwort (optional)"
         }
       },
       "reauth_confirm": {

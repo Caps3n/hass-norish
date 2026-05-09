@@ -3,18 +3,22 @@
     "step": {
       "user": {
         "title": "Connect Norish",
-        "description": "Enter your Norish server URL and API key.",
+        "description": "Enter your Norish server URL and API key. Optionally provide your Norish login credentials to enable automatic API key renewal when the key expires.",
         "data": {
           "url": "Norish URL",
-          "api_key": "API Key"
+          "api_key": "API Key",
+          "norish_email": "Norish Email (optional)",
+          "norish_password": "Norish Password (optional)"
         }
       },
       "reconfigure": {
         "title": "Reconfigure Norish",
-        "description": "Update your Norish URL or API key.",
+        "description": "Update your Norish URL, API key, or login credentials for automatic renewal.",
         "data": {
           "url": "Norish URL",
-          "api_key": "API Key"
+          "api_key": "API Key",
+          "norish_email": "Norish Email (optional)",
+          "norish_password": "Norish Password (optional)"
         }
       },
       "reauth_confirm": {

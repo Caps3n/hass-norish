@@ -20,9 +20,14 @@ from homeassistant.helpers.selector import (
     SelectSelectorConfig,
     SelectSelectorMode,
     SelectOptionDict,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
 )
 
 from .const import (
+    CONF_NORISH_EMAIL,
+    CONF_NORISH_PASSWORD,
     CONF_POLL_INTERVAL,
     DEFAULT_POLL_INTERVAL,
     DEFAULT_URL,
@@ -64,6 +69,11 @@ async def _test_api_key(hass, base_url: str, api_key: str) -> str | None:
     except Exception:  # noqa: BLE001
         return ERROR_UNKNOWN
     return None
+
+
+def _password_selector() -> TextSelector:
+    """Return a password input selector."""
+    return TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
 
 
 def _poll_interval_selector() -> SelectSelector:
@@ -110,6 +120,8 @@ class NorishConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(CONF_URL, default=DEFAULT_URL): str,
                 vol.Required(CONF_API_KEY): str,
+                vol.Optional(CONF_NORISH_EMAIL, default=""): str,
+                vol.Optional(CONF_NORISH_PASSWORD, default=""): _password_selector(),
             }
         )
 
@@ -120,13 +132,14 @@ class NorishConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle reconfiguration – update URL or API key."""
+        """Handle reconfiguration – update URL, API key, or renewal credentials."""
         errors: dict[str, str] = {}
         entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
         current_url = (
             entry.data.get(CONF_URL, DEFAULT_URL)
             if entry else DEFAULT_URL
         )
+        current_email = entry.data.get(CONF_NORISH_EMAIL, "") if entry else ""
 
         if user_input is not None:
             error = await _test_api_key(
@@ -146,6 +159,8 @@ class NorishConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(CONF_URL, default=current_url): str,
                 vol.Required(CONF_API_KEY): str,
+                vol.Optional(CONF_NORISH_EMAIL, default=current_email): str,
+                vol.Optional(CONF_NORISH_PASSWORD, default=""): _password_selector(),
             }
         )
 

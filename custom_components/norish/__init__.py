@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DEFAULT_URL, DOMAIN
+from .const import CONF_NORISH_EMAIL, CONF_NORISH_PASSWORD, DEFAULT_URL, DOMAIN
 from .coordinator import NorishCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,11 +52,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     raw_url: str = entry.data.get(CONF_URL) or DEFAULT_URL
     base_url = raw_url.rstrip("/")
     api_key: str = entry.data.get(CONF_API_KEY, "")
+    norish_email: str = entry.data.get(CONF_NORISH_EMAIL, "")
+    norish_password: str = entry.data.get(CONF_NORISH_PASSWORD, "")
 
     # Quick check that the key is still valid
     await _validate_api_key(hass, base_url, api_key)
 
-    coordinator = NorishCoordinator(hass, entry, base_url, api_key)
+    coordinator = NorishCoordinator(
+        hass, entry, base_url, api_key,
+        norish_email=norish_email,
+        norish_password=norish_password,
+    )
 
     try:
         await coordinator.async_config_entry_first_refresh()

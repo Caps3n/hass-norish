@@ -25,3 +25,9 @@ POLL_INTERVAL_OPTIONS: dict[int, str] = {
     1800: "30 minutes",
     3600: "60 minutes",
 }
+
+# Optional Norish login credentials for automatic API key renewal (v1.6.9).
+# When stored, the coordinator can silently create a new API key when the
+# current one is exhausted — no manual "Reconfigure" required.
+CONF_NORISH_EMAIL = "norish_email"
+CONF_NORISH_PASSWORD = "norish_password"

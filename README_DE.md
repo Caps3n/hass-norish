@@ -220,11 +220,12 @@ logger:
 
 ---
 
-## 🆕 Neu in v1.6.8
+## 🆕 Neu in v1.6.9
 
-- **Exponentielles Reconnect-Backoff** — nach jedem Fehler (401, Timeout, Verbindungsabbruch) wartet die Integration länger bevor sie es erneut versucht: 1. Fehler → 60 s, 2. → 5 min, 3.+ → 10 min
-- **Automatische Wiederherstellung** — beim ersten erfolgreichen Update kehrt das Poll-Intervall automatisch auf den konfigurierten Wert zurück, kein Neustart nötig
-- **Klarere Log-Meldungen** — Backoff-Änderungen und Verbindungswiederherstellungen sind im HA-Log sichtbar, ohne Debug-Logging aktivieren zu müssen
+- **Automatische API-Key-Erneuerung** — wenn der Key erschöpft ist, erstellt die Integration automatisch einen neuen mit den gespeicherten Norish-Zugangsdaten. Kein manuelles "Neu konfigurieren" nötig.
+- **Optionale Zugangsdaten** — E-Mail + Passwort im Setup- oder Reconfigure-Formular eintragen, um die Auto-Erneuerung zu aktivieren. Das Passwort wird als maskiertes Feld gespeichert.
+- **Fallback** — ohne Zugangsdaten bleibt das bisherige Verhalten: nach 3 aufeinanderfolgenden 401-Fehlern zeigt HA die "Neu konfigurieren"-Benachrichtigung.
+- **Exponentielles Reconnect-Backoff** (v1.6.8) — 1. Fehler → 60 s, 2. → 5 min, 3.+ → 10 min; stellt sich nach Erfolg automatisch wieder her.
 
 Vollständige Versionshistorie in [CHANGELOG.md](CHANGELOG.md)
 

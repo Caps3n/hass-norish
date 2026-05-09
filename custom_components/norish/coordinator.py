@@ -1,5 +1,16 @@
 """Coordinator for the Norish API.
 
+v1.6.9 – Automatic API key renewal using stored Norish credentials.
+- When the API key is exhausted (requestCount >= rateLimitMax with no refill),
+  Norish returns 401 after ~2-3 days of HA polling.
+- If email + password are stored in the config entry, the coordinator silently
+  renews the key instead of requiring manual reconfiguration:
+    1. POST /api/auth/sign-in/email  → obtain a session token
+    2. POST /api/auth/api-key/create → create a new key named "HomeAssistant"
+    3. Update config_entry.data and resume polling without interruption
+- Without credentials the existing behaviour is preserved (Reconfigure
+  notification after MAX_AUTH_FAILURES consecutive 401s).
+
 v1.6.8 – Exponential reconnect backoff.
 - After any failure (401, timeout, connection error) the update_interval is
   temporarily increased so HA waits longer before the next retry:
@@ -34,12 +45,18 @@ from typing import Any
 import aiohttp
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_API_KEY, CONF_URL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL
+from .const import (
+    CONF_NORISH_EMAIL,
+    CONF_NORISH_PASSWORD,
+    CONF_POLL_INTERVAL,
+    DEFAULT_POLL_INTERVAL,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,6 +88,9 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         entry: ConfigEntry,
         base_url: str,
         api_key: str,
+        *,
+        norish_email: str = "",
+        norish_password: str = "",
     ) -> None:
         """Initialize the coordinator."""
         poll_interval: int = entry.options.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL)
@@ -85,6 +105,10 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         self.base_url = base_url.rstrip("/")
         self._api_key = api_key
+        self._norish_email = norish_email
+        self._norish_password = norish_password
+        # Guard: only one renewal attempt at a time
+        self._renewal_in_progress: bool = False
         self.store_map: dict[str, str] = {}
         self._last_successful_update: date | None = None
         self._image_cache_path = os.path.join(
@@ -148,6 +172,121 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
         self.update_interval = new_interval
 
+    async def _async_renew_api_key(self) -> bool:
+        """Silently renew the Norish API key using stored credentials.
+
+        Returns True on success (self._api_key updated, config entry persisted),
+        False if renewal is not possible or fails.
+
+        Flow:
+          1. POST /api/auth/sign-in/email  → session token
+          2. POST /api/auth/api-key/create → new API key
+          3. hass.config_entries.async_update_entry → persisted
+        """
+        if self._renewal_in_progress:
+            _LOGGER.debug("Norish: API key renewal already in progress, skipping")
+            return False
+
+        if not self._norish_email or not self._norish_password:
+            _LOGGER.debug(
+                "Norish: no Norish credentials stored – skipping auto-renewal. "
+                "Enter email + password in the integration settings to enable this."
+            )
+            return False
+
+        self._renewal_in_progress = True
+        try:
+            session = async_get_clientsession(self.hass)
+            timeout = aiohttp.ClientTimeout(total=30)
+
+            # --- Step 1: sign in and get a session token ---
+            sign_in_url = f"{self.base_url}/api/auth/sign-in/email"
+            sign_in_payload = {
+                "email": self._norish_email,
+                "password": self._norish_password,
+                "rememberMe": False,
+            }
+            _LOGGER.info("Norish: attempting automatic API key renewal …")
+            async with session.post(
+                sign_in_url,
+                json=sign_in_payload,
+                timeout=timeout,
+            ) as resp:
+                if resp.status != 200:
+                    body = await resp.text()
+                    _LOGGER.warning(
+                        "Norish: sign-in failed (status %d): %s", resp.status, body[:200]
+                    )
+                    return False
+                sign_in_data: dict[str, Any] = await resp.json()
+
+            # Better Auth returns the token either at top-level or under "token"
+            token: str = (
+                sign_in_data.get("token")
+                or (sign_in_data.get("data") or {}).get("token", "")
+            )
+            if not token:
+                _LOGGER.warning(
+                    "Norish: sign-in response contained no token: %s",
+                    str(sign_in_data)[:200],
+                )
+                return False
+
+            # --- Step 2: create a new API key ---
+            create_url = f"{self.base_url}/api/auth/api-key/create"
+            async with session.post(
+                create_url,
+                json={"name": "HomeAssistant"},
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=timeout,
+            ) as resp:
+                if resp.status != 200:
+                    body = await resp.text()
+                    _LOGGER.warning(
+                        "Norish: API key creation failed (status %d): %s",
+                        resp.status, body[:200],
+                    )
+                    return False
+                key_data: dict[str, Any] = await resp.json()
+
+            new_key: str = (
+                key_data.get("key")
+                or (key_data.get("data") or {}).get("key", "")
+            )
+            if not new_key:
+                _LOGGER.warning(
+                    "Norish: API key creation response contained no key: %s",
+                    str(key_data)[:200],
+                )
+                return False
+
+            # --- Step 3: persist and apply the new key ---
+            self._api_key = new_key
+            self._consecutive_auth_failures = 0
+            self._consecutive_failures = 0
+
+            new_data = {
+                **self.config_entry.data,
+                CONF_API_KEY: new_key,
+            }
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, data=new_data
+            )
+            _LOGGER.info("Norish: API key renewed automatically ✓")
+            return True
+
+        except aiohttp.ClientError as err:
+            _LOGGER.warning("Norish: API key renewal network error: %s", err)
+            return False
+        except asyncio.TimeoutError:
+            _LOGGER.warning("Norish: API key renewal timed out")
+            return False
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("Norish: API key renewal failed unexpectedly: %s", err)
+            return False
+        finally:
+            self._renewal_in_progress = False
+
     # ------------------------------------------------------------------
     # tRPC helpers
     # ------------------------------------------------------------------
@@ -203,6 +342,14 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             MAX_AUTH_FAILURES,
                         )
                         if self._consecutive_auth_failures >= MAX_AUTH_FAILURES:
+                            # Try automatic renewal if credentials are stored
+                            renewed = await self._async_renew_api_key()
+                            if renewed:
+                                # Key renewed – update headers and retry this request
+                                headers = self._get_headers()
+                                raise UpdateFailed(
+                                    f"Norish: API key renewed, retrying {procedure}"
+                                )
                             _LOGGER.error(
                                 "Norish: %d consecutive 401s – API key invalid or "
                                 "expired. Re-authentication required.",
@@ -347,6 +494,11 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         MAX_AUTH_FAILURES,
                     )
                     if self._consecutive_auth_failures >= MAX_AUTH_FAILURES:
+                        renewed = await self._async_renew_api_key()
+                        if renewed:
+                            raise UpdateFailed(
+                                f"Norish: API key renewed, retrying POST {procedure}"
+                            )
                         raise ConfigEntryAuthFailed(
                             "Norish API key invalid or expired on POST"
                         )

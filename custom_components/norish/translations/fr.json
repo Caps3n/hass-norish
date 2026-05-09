@@ -3,18 +3,22 @@
     "step": {
       "user": {
         "title": "Configurer Norish",
-        "description": "Entrez l'URL de votre serveur Norish et votre clé API.",
+        "description": "Entrez l'URL de votre serveur Norish et votre clé API. Optionnellement, fournissez vos identifiants Norish pour activer le renouvellement automatique de la clé API.",
         "data": {
           "url": "URL du serveur",
-          "api_key": "Clé API"
+          "api_key": "Clé API",
+          "norish_email": "Email Norish (optionnel)",
+          "norish_password": "Mot de passe Norish (optionnel)"
         }
       },
       "reconfigure": {
         "title": "Reconfigurer Norish",
-        "description": "Mettez à jour votre URL ou clé API Norish.",
+        "description": "Mettez à jour votre URL, clé API ou identifiants pour le renouvellement automatique.",
         "data": {
           "url": "URL du serveur",
-          "api_key": "Clé API"
+          "api_key": "Clé API",
+          "norish_email": "Email Norish (optionnel)",
+          "norish_password": "Mot de passe Norish (optionnel)"
         }
       },
       "reauth_confirm": {
