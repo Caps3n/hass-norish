@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.10] - 2026-05-21
+
+### Fixed — Startup Timeout Crash
+- 🐛 **`TimeoutError` no longer crashes the integration on startup** — if the Norish
+  server is not reachable within the validation timeout (e.g. HA boots before Norish
+  is ready), Home Assistant now receives `ConfigEntryNotReady` and automatically
+  retries setup after a delay — instead of permanently failing with an unhandled
+  `asyncio.TimeoutError`.
+- ⏱️ Validation timeout increased from 10 s to 30 s to better handle slow server
+  starts or high-latency networks.
+
+---
+
 ## [1.6.9] - 2026-05-09
 
 ### Added — Automatic API Key Renewal

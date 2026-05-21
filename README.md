@@ -278,6 +278,15 @@ logger:
 
 ---
 
+## 🆕 What's New in v1.6.10
+
+- **Startup timeout fix** — if the Norish server isn't reachable when Home Assistant boots (e.g. HA starts before Norish is ready), the integration now triggers a graceful retry via `ConfigEntryNotReady` instead of crashing permanently with a `TimeoutError`.
+- **Longer validation timeout** — increased from 10 s to 30 s to handle slow server starts and high-latency networks.
+
+See [CHANGELOG.md](CHANGELOG.md) for the full version history.
+
+---
+
 ## 🆕 What's New in v1.6.9
 
 - **Automatic API key renewal** — when the key is exhausted the integration silently creates a new one using your stored Norish credentials. No manual "Reconfigure" needed.

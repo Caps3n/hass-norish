@@ -220,6 +220,15 @@ logger:
 
 ---
 
+## 🆕 Neu in v1.6.10
+
+- **Startup-Timeout-Fix** — wenn der Norish-Server beim HA-Start nicht erreichbar ist (z.B. HA startet vor Norish), löst die Integration jetzt ein `ConfigEntryNotReady` aus und HA versucht es automatisch erneut — statt dauerhaft mit einem `TimeoutError` zu crashen.
+- **Längeres Validierungs-Timeout** — von 10 s auf 30 s erhöht für langsamere Server oder Netzwerke.
+
+Vollständige Versionshistorie in [CHANGELOG.md](CHANGELOG.md)
+
+---
+
 ## 🆕 Neu in v1.6.9
 
 - **Automatische API-Key-Erneuerung** — wenn der Key erschöpft ist, erstellt die Integration automatisch einen neuen mit den gespeicherten Norish-Zugangsdaten. Kein manuelles "Neu konfigurieren" nötig.

@@ -1,6 +1,6 @@
 """Norish Home Assistant Integration.
 
-v1.6.5 – Options flow fix: async_reload uses standard HA reload call.
+v1.6.10 – Catch TimeoutError during startup validation so HA retries via ConfigEntryNotReady.
 """
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ async def _validate_api_key(hass: HomeAssistant, base_url: str, api_key: str) ->
     )
     try:
         async with session.get(
-            url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+            url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)
         ) as resp:
             if resp.status == 401:
                 raise ConfigEntryAuthFailed("Norish API key invalid or expired")
@@ -43,7 +43,7 @@ async def _validate_api_key(hass: HomeAssistant, base_url: str, api_key: str) ->
                 raise ConfigEntryNotReady(
                     f"Norish server error ({resp.status}) during setup"
                 )
-    except aiohttp.ClientError as err:
+    except (aiohttp.ClientError, TimeoutError) as err:
         raise ConfigEntryNotReady(f"Cannot connect to Norish: {err}") from err
 
 
