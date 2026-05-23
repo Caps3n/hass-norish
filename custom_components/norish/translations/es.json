@@ -23,9 +23,11 @@
       },
       "reauth_confirm": {
         "title": "Reautenticar Norish",
-        "description": "Su clave API de Norish ha expirado. Por favor, ingrese una nueva.",
+        "description": "Su clave API de Norish ha expirado. Ingrese una nueva clave. También puede actualizar sus credenciales de Norish aquí para corregir o activar la renovación automática.",
         "data": {
-          "api_key": "Clave API"
+          "api_key": "Clave API",
+          "norish_email": "Email de Norish (opcional)",
+          "norish_password": "Contraseña de Norish (opcional)"
         }
       }
     },

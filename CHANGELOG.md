@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.11] - 2026-05-21
+
+### Fixed — Re-auth dialog now includes Email & Password fields
+- 🔐 **Email + Password in Re-auth dialog** — the "Re-authenticate" dialog (shown when
+  the API key expires) now also contains the optional Norish Email and Password fields.
+  This allows fixing a wrong email address or enabling auto-renewal directly from the
+  re-auth flow — without needing to delete and re-add the integration.
+- 🌍 **All 5 translations updated** — EN, DE, FR, ES, IT.
+
+---
+
 ## [1.6.10] - 2026-05-21
 
 ### Fixed — Startup Timeout Crash

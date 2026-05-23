@@ -177,11 +177,12 @@ class NorishConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_reauth_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Confirm re-authentication with a new API key."""
+        """Confirm re-authentication with a new API key (+ optional renewal credentials)."""
         errors: dict[str, str] = {}
         entry = self.hass.config_entries.async_get_entry(
             self.context.get("entry_id", "")
         )
+        current_email = entry.data.get(CONF_NORISH_EMAIL, "") if entry else ""
 
         if user_input is not None:
             url = entry.data.get(CONF_URL, DEFAULT_URL) if entry else DEFAULT_URL
@@ -202,6 +203,8 @@ class NorishConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data_schema = vol.Schema(
             {
                 vol.Required(CONF_API_KEY): str,
+                vol.Optional(CONF_NORISH_EMAIL, default=current_email): str,
+                vol.Optional(CONF_NORISH_PASSWORD, default=""): _password_selector(),
             }
         )
 

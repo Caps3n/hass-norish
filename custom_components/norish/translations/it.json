@@ -23,9 +23,11 @@
       },
       "reauth_confirm": {
         "title": "Riautentica Norish",
-        "description": "La tua chiave API Norish è scaduta. Inseriscine una nuova.",
+        "description": "La tua chiave API Norish è scaduta. Inserisci una nuova chiave. Puoi anche aggiornare le tue credenziali Norish qui per correggere o attivare il rinnovo automatico.",
         "data": {
-          "api_key": "Chiave API"
+          "api_key": "Chiave API",
+          "norish_email": "Email Norish (facoltativo)",
+          "norish_password": "Password Norish (facoltativo)"
         }
       }
     },

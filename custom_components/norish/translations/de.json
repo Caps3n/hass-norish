@@ -23,9 +23,11 @@
       },
       "reauth_confirm": {
         "title": "Norish erneut authentifizieren",
-        "description": "Dein Norish API-Key ist abgelaufen. Bitte gib einen neuen ein.",
+        "description": "Dein Norish API-Key ist abgelaufen. Gib einen neuen ein. Du kannst hier auch deine Norish-Zugangsdaten korrigieren oder ergänzen, um die automatische Erneuerung zu aktivieren.",
         "data": {
-          "api_key": "API-Key"
+          "api_key": "API-Key",
+          "norish_email": "Norish E-Mail (optional)",
+          "norish_password": "Norish Passwort (optional)"
         }
       }
     },
