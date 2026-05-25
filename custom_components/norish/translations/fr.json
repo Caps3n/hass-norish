@@ -7,7 +7,7 @@
         "data": {
           "url": "URL du serveur",
           "api_key": "Clé API",
-          "norish_email": "Email Norish (optionnel)",
+          "norish_email": "Email ou nom d'utilisateur Norish (optionnel)",
           "norish_password": "Mot de passe Norish (optionnel)"
         }
       },
@@ -17,7 +17,7 @@
         "data": {
           "url": "URL du serveur",
           "api_key": "Clé API",
-          "norish_email": "Email Norish (optionnel)",
+          "norish_email": "Email ou nom d'utilisateur Norish (optionnel)",
           "norish_password": "Mot de passe Norish (optionnel)"
         }
       },
@@ -26,7 +26,7 @@
         "description": "Votre clé API Norish a expiré. Entrez une nouvelle clé. Vous pouvez également mettre à jour vos identifiants Norish ici pour corriger ou activer le renouvellement automatique.",
         "data": {
           "api_key": "Clé API",
-          "norish_email": "Email Norish (optionnel)",
+          "norish_email": "Email ou nom d'utilisateur Norish (optionnel)",
           "norish_password": "Mot de passe Norish (optionnel)"
         }
       }

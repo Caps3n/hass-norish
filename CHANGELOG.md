@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.12] - 2026-05-25
+
+### Fixed — Username support for auto-renewal sign-in
+- 🔑 **Email or Username login** — the auto-renewal sign-in now supports both email
+  addresses and plain usernames. If the stored credential contains `@` it is sent
+  to `/api/auth/sign-in/email`; otherwise it is sent to `/api/auth/sign-in/username`.
+  This fixes `INVALID_EMAIL` errors for users who log into Norish with a username
+  instead of an email address.
+- 🏷️ **UI label updated** — the credential field in all setup/reconfigure/reauth
+  dialogs now reads "Email or Username" so the accepted formats are clearly visible.
+- 🌍 **All 5 translations updated** — EN, DE, FR, ES, IT.
+
+---
+
 ## [1.6.11] - 2026-05-21
 
 ### Fixed — Re-auth dialog now includes Email & Password fields

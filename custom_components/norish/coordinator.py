@@ -200,12 +200,23 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             timeout = aiohttp.ClientTimeout(total=30)
 
             # --- Step 1: sign in and get a session token ---
-            sign_in_url = f"{self.base_url}/api/auth/sign-in/email"
-            sign_in_payload = {
-                "email": self._norish_email,
-                "password": self._norish_password,
-                "rememberMe": False,
-            }
+            # Better Auth supports both email-based and username-based login.
+            # Detect which one to use by checking for "@" in the credential.
+            credential = self._norish_email  # may be an e-mail or a plain username
+            if "@" in credential:
+                sign_in_url = f"{self.base_url}/api/auth/sign-in/email"
+                sign_in_payload = {
+                    "email": credential,
+                    "password": self._norish_password,
+                    "rememberMe": False,
+                }
+            else:
+                sign_in_url = f"{self.base_url}/api/auth/sign-in/username"
+                sign_in_payload = {
+                    "username": credential,
+                    "password": self._norish_password,
+                    "rememberMe": False,
+                }
             _LOGGER.info("Norish: attempting automatic API key renewal …")
             async with session.post(
                 sign_in_url,

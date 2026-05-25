@@ -7,7 +7,7 @@
         "data": {
           "url": "Norish URL",
           "api_key": "API Key",
-          "norish_email": "Norish Email (optional)",
+          "norish_email": "Norish Email or Username (optional)",
           "norish_password": "Norish Password (optional)"
         }
       },
@@ -17,7 +17,7 @@
         "data": {
           "url": "Norish URL",
           "api_key": "API Key",
-          "norish_email": "Norish Email (optional)",
+          "norish_email": "Norish Email or Username (optional)",
           "norish_password": "Norish Password (optional)"
         }
       },
@@ -26,7 +26,7 @@
         "description": "Your Norish API key has expired. Enter a new key. You can also update your Norish login credentials here to fix or enable automatic API key renewal.",
         "data": {
           "api_key": "API Key",
-          "norish_email": "Norish Email (optional)",
+          "norish_email": "Norish Email or Username (optional)",
           "norish_password": "Norish Password (optional)"
         }
       }

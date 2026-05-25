@@ -7,7 +7,7 @@
         "data": {
           "url": "URL del servidor",
           "api_key": "Clave API",
-          "norish_email": "Email de Norish (opcional)",
+          "norish_email": "Email o nombre de usuario de Norish (opcional)",
           "norish_password": "Contraseña de Norish (opcional)"
         }
       },
@@ -17,7 +17,7 @@
         "data": {
           "url": "URL del servidor",
           "api_key": "Clave API",
-          "norish_email": "Email de Norish (opcional)",
+          "norish_email": "Email o nombre de usuario de Norish (opcional)",
           "norish_password": "Contraseña de Norish (opcional)"
         }
       },
@@ -26,7 +26,7 @@
         "description": "Su clave API de Norish ha expirado. Ingrese una nueva clave. También puede actualizar sus credenciales de Norish aquí para corregir o activar la renovación automática.",
         "data": {
           "api_key": "Clave API",
-          "norish_email": "Email de Norish (opcional)",
+          "norish_email": "Email o nombre de usuario de Norish (opcional)",
           "norish_password": "Contraseña de Norish (opcional)"
         }
       }

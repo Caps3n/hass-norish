@@ -7,7 +7,7 @@
         "data": {
           "url": "URL del server",
           "api_key": "Chiave API",
-          "norish_email": "Email Norish (facoltativo)",
+          "norish_email": "Email o nome utente Norish (facoltativo)",
           "norish_password": "Password Norish (facoltativo)"
         }
       },
@@ -17,7 +17,7 @@
         "data": {
           "url": "URL del server",
           "api_key": "Chiave API",
-          "norish_email": "Email Norish (facoltativo)",
+          "norish_email": "Email o nome utente Norish (facoltativo)",
           "norish_password": "Password Norish (facoltativo)"
         }
       },
@@ -26,7 +26,7 @@
         "description": "La tua chiave API Norish è scaduta. Inserisci una nuova chiave. Puoi anche aggiornare le tue credenziali Norish qui per correggere o attivare il rinnovo automatico.",
         "data": {
           "api_key": "Chiave API",
-          "norish_email": "Email Norish (facoltativo)",
+          "norish_email": "Email o nome utente Norish (facoltativo)",
           "norish_password": "Password Norish (facoltativo)"
         }
       }
