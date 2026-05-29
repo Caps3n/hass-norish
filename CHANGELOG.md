@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.13] - 2026-05-25
+
+### Fixed — Transient 401 bursts no longer kill the integration permanently
+- 🔄 **Direct key validation before auth-failed** — when 3 consecutive 401s occur
+  (e.g. during a brief Norish server restart or network hiccup), the coordinator
+  now performs one direct validation request before raising `ConfigEntryAuthFailed`:
+  - Validation **succeeds** → 401s were transient → counter reset, polling continues normally (no user action needed)
+  - Validation **also returns 401** → key is truly expired → `ConfigEntryAuthFailed` as before
+  - Validation **network error** → server unreachable → `UpdateFailed` so HA retries later
+- Previously a Norish container restart during a poll window could permanently
+  stop the integration, requiring an HA restart or manual re-auth — even though
+  the API key was still perfectly valid.
+
+---
+
 ## [1.6.12] - 2026-05-25
 
 ### Fixed — Username support for auto-renewal sign-in

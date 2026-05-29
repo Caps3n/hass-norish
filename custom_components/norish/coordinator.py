@@ -1,5 +1,17 @@
 """Coordinator for the Norish API.
 
+v1.6.13 – Transient-401 resilience: direct key validation before auth-failed.
+- When MAX_AUTH_FAILURES consecutive 401s occur (and auto-renewal is not
+  possible or fails), the coordinator now performs a direct key-validation
+  request before raising ConfigEntryAuthFailed.
+  * If the validation succeeds → the 401s were transient (e.g. Norish server
+    restarted briefly) → consecutive-auth counter is reset and the coordinator
+    continues polling normally.
+  * If the validation also returns 401 → the key is truly expired →
+    ConfigEntryAuthFailed is raised as before.
+  * If the validation hits a network error → the server is temporarily
+    unreachable → UpdateFailed is raised so HA retries later.
+
 v1.6.9 – Automatic API key renewal using stored Norish credentials.
 - When the API key is exhausted (requestCount >= rateLimitMax with no refill),
   Norish returns 401 after ~2-3 days of HA polling.
@@ -143,6 +155,31 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "User-Agent": "HomeAssistant/Norish",
             "Accept": "application/json",
         }
+
+    async def _async_validate_key(self) -> bool | None:
+        """Perform a direct API-key validation request.
+
+        Returns:
+            True  – key is valid (200 response)
+            False – key is invalid/expired (401 response)
+            None  – network/server error (cannot determine key status)
+        """
+        url = (
+            f"{self.base_url}/api/trpc/groceries.list"
+            "?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%7D%7D"
+        )
+        session = async_get_clientsession(self.hass)
+        try:
+            async with session.get(
+                url,
+                headers=self._get_headers(),
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp:
+                if resp.status == 401:
+                    return False
+                return True
+        except (aiohttp.ClientError, asyncio.TimeoutError):
+            return None
 
     def _apply_reconnect_backoff(self) -> None:
         """Adjust update_interval based on consecutive failure count.
@@ -361,6 +398,36 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                                 raise UpdateFailed(
                                     f"Norish: API key renewed, retrying {procedure}"
                                 )
+                            # Before declaring the key dead, do one direct
+                            # validation.  If it passes the consecutive 401s
+                            # were transient (e.g. Norish server restart) and
+                            # we can resume normal polling without user action.
+                            key_valid = await self._async_validate_key()
+                            if key_valid is True:
+                                _LOGGER.warning(
+                                    "Norish: %d consecutive 401s but direct "
+                                    "validation succeeded – treating as transient, "
+                                    "resetting auth counter.",
+                                    self._consecutive_auth_failures,
+                                )
+                                self._consecutive_auth_failures = 0
+                                raise UpdateFailed(
+                                    f"Norish: transient 401 burst for {procedure}, "
+                                    "recovered – will retry next interval"
+                                )
+                            if key_valid is None:
+                                # Network error during validation – server
+                                # temporarily unreachable, retry later.
+                                _LOGGER.warning(
+                                    "Norish: %d consecutive 401s and validation "
+                                    "request also failed (network) – will retry.",
+                                    self._consecutive_auth_failures,
+                                )
+                                raise UpdateFailed(
+                                    f"Norish: cannot reach server after {procedure} "
+                                    "401 burst – will retry"
+                                )
+                            # key_valid is False → key is genuinely expired
                             _LOGGER.error(
                                 "Norish: %d consecutive 401s – API key invalid or "
                                 "expired. Re-authentication required.",
