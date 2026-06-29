@@ -163,11 +163,14 @@ class NorishMealSensor(CoordinatorEntity, SensorEntity):
             if event_date != today_str:
                 continue
 
-            # Prefer recipe name from detail fetch, fall back to event field
-            name: str = event.get("recipeName") or "Unknown"
             recipe_details: dict[str, Any] = event.get("_recipe") or {}
-            if recipe_details.get("name"):
-                name = recipe_details["name"]
+            note: str = event.get("note") or ""
+            name: str = (
+                recipe_details.get("name")
+                or event.get("recipeName")
+                or note
+                or "Meal"
+            )
 
             slot_raw = event.get("slot") or event.get("type") or "meal"
             meal_type = slot_raw.upper() if isinstance(slot_raw, str) else "MEAL"
@@ -194,6 +197,7 @@ class NorishMealSensor(CoordinatorEntity, SensorEntity):
                     "type": meal_type.capitalize(),
                     "recipe_id": recipe_id,
                     "image": image_url,
+                    "note": note,
                 }
             )
 
@@ -274,10 +278,14 @@ class NorishWeekPlannerSensor(CoordinatorEntity, SensorEntity):
                 if event.get("date", "") != current_date_str:
                     continue
 
-                name: str = event.get("recipeName") or "Unknown"
                 recipe_details: dict[str, Any] = event.get("_recipe") or {}
-                if recipe_details.get("name"):
-                    name = recipe_details["name"]
+                note: str = event.get("note") or ""
+                name: str = (
+                    recipe_details.get("name")
+                    or event.get("recipeName")
+                    or note
+                    or "Meal"
+                )
 
                 slot_raw = event.get("slot") or event.get("type") or "meal"
                 meal_type = slot_raw.upper() if isinstance(slot_raw, str) else "MEAL"
@@ -303,6 +311,7 @@ class NorishWeekPlannerSensor(CoordinatorEntity, SensorEntity):
                         "type": meal_type,
                         "recipe_id": recipe_id,
                         "image": image_url,
+                        "note": note,
                     }
                 )
 
