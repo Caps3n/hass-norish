@@ -125,9 +125,15 @@ class NorishMealSensor(CoordinatorEntity, SensorEntity):
         """Return additional attributes."""
         meals = self._get_filtered_meals()
 
+        def _meal_label(m: dict[str, Any]) -> str:
+            label = f"{m['type']}: {m['name']}"
+            if m.get("note"):
+                label += f" – {m['note']}"
+            return label
+
         attributes: dict[str, Any] = {
             "meal_count": len(meals),
-            "meals": [f"{m['type']}: {m['name']}" for m in meals],
+            "meals": [_meal_label(m) for m in meals],
             "raw_data": meals,
         }
 
@@ -137,6 +143,8 @@ class NorishMealSensor(CoordinatorEntity, SensorEntity):
                 attributes["image_url"] = first["image"]
             if first.get("recipe_id"):
                 attributes["recipe_id"] = first["recipe_id"]
+            if first.get("note"):
+                attributes["note"] = first["note"]
 
         return attributes
 
