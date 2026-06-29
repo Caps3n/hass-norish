@@ -1,5 +1,10 @@
 """Coordinator for the Norish API.
 
+v1.7.0 – Calendar notes support.
+- Calendar items can now carry a free-text ``note`` field (e.g. "Going out for dinner").
+- Notes are surfaced in the CalendarEvent summary (when no recipe is planned) and
+  in the event description so they are visible in all HA calendar views.
+
 v1.6.13 – Transient-401 resilience: direct key validation before auth-failed.
 - When MAX_AUTH_FAILURES consecutive 401s occur (and auto-renewal is not
   possible or fails), the coordinator now performs a direct key-validation

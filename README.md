@@ -278,6 +278,17 @@ logger:
 
 ---
 
+## 🆕 What's New in v1.7.0
+
+- **Calendar notes** — Norish now supports free-text notes on any time slot (e.g. "Going out for dinner"). Notes are now displayed in the Home Assistant calendar:
+  - If a recipe is planned, the note appears in the **event description** (visible when you tap the event).
+  - If no recipe is planned, the note becomes the **event title** — so a slot with "Going out to eat" shows up with that text instead of the generic "Meal" label.
+- Fully backwards-compatible: existing setups without notes are unaffected.
+
+See [CHANGELOG.md](CHANGELOG.md) for the full version history.
+
+---
+
 ## 🆕 What's New in v1.6.10
 
 - **Startup timeout fix** — if the Norish server isn't reachable when Home Assistant boots (e.g. HA starts before Norish is ready), the integration now triggers a graceful retry via `ConfigEntryNotReady` instead of crashing permanently with a `TimeoutError`.
