@@ -172,11 +172,12 @@ class NorishMealSensor(CoordinatorEntity, SensorEntity):
                 continue
 
             recipe_details: dict[str, Any] = event.get("_recipe") or {}
-            note: str = event.get("note") or ""
+            item_type: str = event.get("itemType") or "recipe"
+            note_title: str = event.get("title") or ""
             name: str = (
                 recipe_details.get("name")
                 or event.get("recipeName")
-                or note
+                or note_title
                 or "Meal"
             )
 
@@ -205,7 +206,7 @@ class NorishMealSensor(CoordinatorEntity, SensorEntity):
                     "type": meal_type.capitalize(),
                     "recipe_id": recipe_id,
                     "image": image_url,
-                    "note": note,
+                    "note": note_title if item_type == "note" else "",
                 }
             )
 
@@ -287,11 +288,12 @@ class NorishWeekPlannerSensor(CoordinatorEntity, SensorEntity):
                     continue
 
                 recipe_details: dict[str, Any] = event.get("_recipe") or {}
-                note: str = event.get("note") or ""
+                item_type: str = event.get("itemType") or "recipe"
+                note_title: str = event.get("title") or ""
                 name: str = (
                     recipe_details.get("name")
                     or event.get("recipeName")
-                    or note
+                    or note_title
                     or "Meal"
                 )
 
@@ -319,7 +321,7 @@ class NorishWeekPlannerSensor(CoordinatorEntity, SensorEntity):
                         "type": meal_type,
                         "recipe_id": recipe_id,
                         "image": image_url,
-                        "note": note,
+                        "note": note_title if item_type == "note" else "",
                     }
                 )
 
