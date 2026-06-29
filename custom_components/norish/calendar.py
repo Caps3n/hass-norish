@@ -94,13 +94,29 @@ class NorishCalendar(CoordinatorEntity, CalendarEntity):
                     continue
 
                 # Resolve display name
-                name: str = item.get("recipeName") or "Meal"
+                note: str = item.get("note") or ""
                 recipe_details: dict = item.get("_recipe") or {}
-                if recipe_details.get("name"):
-                    name = recipe_details["name"]
+                recipe_name: str = (
+                    recipe_details.get("name")
+                    or item.get("recipeName")
+                    or ""
+                )
 
                 slot: str = item.get("slot") or "Meal"
                 hour, minute = SLOT_TIMES.get(slot, (12, 0))
+
+                # Summary: prefer recipe name; fall back to note; then generic label
+                if recipe_name:
+                    summary = f"{slot}: {recipe_name}"
+                elif note:
+                    summary = f"{slot}: {note}"
+                else:
+                    summary = f"{slot}: Meal"
+
+                # Description: combine slot context and note when present
+                description = f"Norish – {slot}"
+                if note:
+                    description = f"Norish – {slot}\n{note}"
 
                 # Build timezone-aware start/end datetimes
                 start_dt = datetime(
@@ -118,8 +134,8 @@ class NorishCalendar(CoordinatorEntity, CalendarEntity):
                     CalendarEvent(
                         start=start_dt,
                         end=end_dt,
-                        summary=f"{slot}: {name}",
-                        description=f"Norish – {slot}",
+                        summary=summary,
+                        description=description,
                     )
                 )
 

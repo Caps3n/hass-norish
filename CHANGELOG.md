@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-06-29
+
+### Added — Calendar notes support
+
+- 📝 **Calendar slot notes** — Norish now allows free-text notes on any calendar time slot (e.g. "Going out for dinner", "Meal prep day"). The integration reads the new `note` field from the Norish API and surfaces it in Home Assistant's calendar:
+  - When a **recipe is planned**, the note appears in the event **description** so it is visible when you tap/click the event in any HA calendar view.
+  - When **no recipe is planned but a note exists**, the note becomes the event **summary** (title) — so events like "Going out to eat" show up properly instead of the generic "Meal" placeholder.
+- Fully backwards-compatible: calendar items without a note continue to work exactly as before.
+
+---
+
 ## [1.6.13] - 2026-05-25
 
 ### Fixed — Transient 401 bursts no longer kill the integration permanently
