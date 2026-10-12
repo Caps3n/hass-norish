@@ -616,10 +616,42 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     # Public mutation helpers (used by todo.py)
     # ------------------------------------------------------------------
 
+    def _grocery_refs(self, grocery_ids: list[str]) -> list[dict[str, Any]] | None:
+        """Return [{id, version}] as current Norish expects, or None if unknown.
+
+        Norish uses the version for optimistic locking; it comes from the
+        last groceries.list.
+        """
+        by_id = {
+            g.get("id"): g for g in (self.data or {}).get("groceries", [])
+            if isinstance(g, dict)
+        }
+        refs = []
+        for grocery_id in grocery_ids:
+            version = (by_id.get(grocery_id) or {}).get("version")
+            if not isinstance(version, int) or version < 1:
+                return None
+            refs.append({"id": grocery_id, "version": version})
+        return refs
+
+    async def _post_grocery_mutation(
+        self, procedure: str, grocery_ids: list[str], extra: dict[str, Any]
+    ) -> list[Any] | None:
+        """POST a toggle/delete in the current format, falling back to the old one.
+
+        Current Norish expects {"groceries": [{"id", "version"}]}; versions
+        before that took {"groceryIds": [...]}.
+        """
+        refs = self._grocery_refs(grocery_ids)
+        if refs is not None:
+            result = await self._post_trpc(procedure, {"groceries": refs, **extra})
+            if result is not None:
+                return result
+        return await self._post_trpc(procedure, {"groceryIds": grocery_ids, **extra})
+
     async def async_delete_groceries(self, grocery_ids: list[str]) -> bool:
         """Delete grocery items from Norish."""
-        payload: dict[str, Any] = {"groceryIds": grocery_ids}
-        result = await self._post_trpc("groceries.delete", payload)
+        result = await self._post_grocery_mutation("groceries.delete", grocery_ids, {})
         if result is None:
             _LOGGER.error("Norish: failed to delete groceries %s", grocery_ids)
             return False
@@ -631,8 +663,9 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self, grocery_id: str, is_done: bool
     ) -> bool:
         """Toggle a grocery item's done state."""
-        payload: dict[str, Any] = {"groceryIds": [grocery_id], "isDone": is_done}
-        result = await self._post_trpc("groceries.toggle", payload)
+        result = await self._post_grocery_mutation(
+            "groceries.toggle", [grocery_id], {"isDone": is_done}
+        )
         if result is None:
             _LOGGER.error(
                 "Norish: failed to toggle grocery %s (isDone=%s)",
