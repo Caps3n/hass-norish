@@ -901,14 +901,11 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         calendar_items: list[dict[str, Any]] = data.get("calendar", [])
 
         for event in calendar_items:
-            recipe = event.get("_recipe") or {}
-            if not recipe:
-                continue
-            image_path: str | None = (
-                recipe.get("image") or recipe.get("imageUrl")
-            )
+            image_path = self._primary_image_path(event)
             if not image_path:
                 continue
+            # Expose the resolved path to the entities, which read _recipe.image
+            event["_recipe"] = {**(event.get("_recipe") or {}), "image": image_path}
 
             image_url = (
                 f"{self.base_url}{image_path}"
@@ -920,6 +917,29 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
             if local_path:
                 event["_local_image"] = local_path
+
+    @staticmethod
+    def _primary_image_path(event: dict[str, Any]) -> str | None:
+        """Return the recipe's primary image path.
+
+        Newer Norish versions keep images in a gallery (recipe["images"]) and
+        leave the legacy recipe["image"] empty; calendar items carry the
+        resolved primary image as "recipeImage".
+        """
+        recipe: dict[str, Any] = event.get("_recipe") or {}
+        gallery = sorted(
+            (
+                img for img in recipe.get("images") or []
+                if isinstance(img, dict) and img.get("image")
+            ),
+            key=lambda img: img.get("order") or 0,
+        )
+        return (
+            event.get("recipeImage")
+            or (gallery[0]["image"] if gallery else None)
+            or recipe.get("image")
+            or recipe.get("imageUrl")
+        )
 
     async def _cache_image(
         self, image_url: str, recipe_id: str
@@ -943,10 +963,11 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 image_url, headers=headers,
                 timeout=aiohttp.ClientTimeout(total=30),
             ) as resp:
-                if resp.status != 200:
+                if resp.status != 200 or not resp.content_type.startswith("image/"):
+                    # e.g. a login page after a redirect – never cache that as image
                     _LOGGER.debug(
-                        "Norish: could not download image %s (status %s)",
-                        image_url, resp.status,
+                        "Norish: could not download image %s (status %s, type %s)",
+                        image_url, resp.status, resp.content_type,
                     )
                     return None
                 image_data = await resp.read()
