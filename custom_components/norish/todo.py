@@ -16,6 +16,7 @@ from homeassistant.components.todo import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -163,9 +164,11 @@ class NorishStoreList(CoordinatorEntity, TodoListEntity):
             return
         is_done = item.status == TodoItemStatus.COMPLETED
         _LOGGER.debug("Norish: toggle %s → isDone=%s", item.uid, is_done)
-        await self.coordinator.async_toggle_grocery(item.uid, is_done)
+        if not await self.coordinator.async_toggle_grocery(item.uid, is_done):
+            raise HomeAssistantError("Could not update the item in Norish")
 
     async def async_delete_todo_items(self, uids: list[str]) -> None:
         """Delete items — syncs back to Norish immediately."""
         _LOGGER.debug("Norish: delete items %s", uids)
-        await self.coordinator.async_delete_groceries(list(uids))
+        if not await self.coordinator.async_delete_groceries(list(uids)):
+            raise HomeAssistantError("Could not delete the items in Norish")
