@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-10-25
+
+### Fixed — "API key expired" after ~24 hours (rate limit, not expiry)
+- 🔍 **Root cause** — Norish API keys use Better Auth's rate limit (500 requests / 1 h).
+  The request counter only resets after a gap of more than one hour without any
+  request, so continuous polling exhausted the key and Norish answered `401`,
+  which the integration treated as an expired key.
+- 📦 **One batched request per poll** — `calendar.listItems` and `groceries.list`
+  are fetched in a single tRPC batch (the key is verified once per HTTP request).
+- 🌙 **Nightly quiet window** (03:00–04:05 local time) — no polling, so the
+  counter resets every night. User actions (e.g. checking off an item) still work.
+- ⏸️ **65-minute cooldown** — if a 401 burst survives direct key validation, all
+  requests pause for 65 minutes first. `ConfigEntryAuthFailed` ("Reconfigure") is
+  only raised if the key is still rejected after the cooldown.
+- 🗂️ Store list cache now also works when the user has no stores (was re-fetched on every poll).
+
+### Fixed — Shopping list check-off / delete
+- ✅ `groceries.toggle` and `groceries.delete` now send `groceries: [{id, version}]`
+  (Norish replaced `groceryIds` and uses optimistic locking).
+- 🔄 After every change the list refreshes immediately (not debounced), so quick
+  follow-up actions use the current item version.
+
+### Added
+- ➕ **Add items** to a store's shopping list from Home Assistant (`groceries.create`).
+- ✏️ **Rename items** (`groceries.update`; Norish parses amount and unit from the text).
+- 🔥 **Calories and servings** (Norish v0.25 nutrition) as sensor attributes and in
+  calendar event descriptions; `item_type` (`recipe` / `note`) in meal data.
+- 🖼️ Recipe images fall back to `recipeImage` from `calendar.listItems`.
+
+### Changed
+- `meals` attribute no longer repeats a note's text twice.
+- Version scheme back to plain SemVer (`1.8.0`).
+
+---
+
 ## [1.7.0] - 2026-06-29
 
 ### Added — Calendar notes support

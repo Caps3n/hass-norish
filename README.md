@@ -31,12 +31,14 @@ A full-featured Home Assistant integration for [Norish](https://github.com/noris
 ### 📆 Calendar
 - Native Home Assistant calendar entity
 - One event per meal with correct time slots
+- **Calendar notes** (e.g. "Dinner at Marlies'") shown as events
+- Calories and servings in the event description
 - Full date-range support
 
 ### 🛒 Shopping List
 - Native Home Assistant Todo list entity
 - Displays items with quantity and unit
-- Create, update, and delete support
+- **Add, rename, check off and delete** items — synced back to Norish (Norish parses amounts, e.g. `2 kg flour`)
 
 ### 📷 Camera Entities
 - One camera entity per meal type (Breakfast, Lunch, Dinner, Snack)
@@ -247,9 +249,11 @@ sensor.norish_week_planner:
 
 ## 🔧 Troubleshooting
 
-**Integration shows "Setup error" / stops working after a few hours**
-- Your API key has expired. Go to **Settings → Devices & Services → Norish → ⋮ → Reconfigure** and enter a new key from your Norish settings under **API Keys**.
-- The integration tolerates up to 2 transient auth errors before disabling itself, so brief server hiccups are handled automatically.
+**"Reconfigure" / "API key expired" although the key is valid**
+- Norish rate-limits every API key (500 requests per hour) and only resets the counter after **more than one hour without any request**. Continuous polling used to exhaust the key after ~1 day, and Norish then answers `401` — indistinguishable from an expired key.
+- Since v1.8.0 the integration handles this automatically: one batched request per poll, a nightly no-polling window (03:00–04:05 local time) that resets the counter, and a 65-minute pause if the key is rejected anyway. "Reconfigure" only appears if the key is **still** rejected after that pause.
+- Recommended poll interval: 5 minutes or longer. At 1 minute the integration uses more than 500 requests per day.
+- If the key really expired or was deleted: **Settings → Devices & Services → Norish → ⋮ → Reconfigure** and enter a new key from Norish settings under **API Keys**.
 
 **No meals shown / "No meals planned"**
 - Check the integration is active (not showing a setup error)
@@ -275,6 +279,19 @@ logger:
   logs:
     custom_components.norish: debug
 ```
+
+---
+
+## 🆕 What's New in v1.8.0
+
+- **Fixed: "API key expired" after ~24 hours** — the real cause is Norish's rate limit, which only resets after an hour without requests. The integration now batches calendar + groceries into one request, pauses polling nightly (03:00–04:05) so the counter resets, and waits 65 minutes before asking you to reconfigure.
+- **Fixed: checking off / deleting shopping items** — Norish changed these API calls (they now require the item version); both work again.
+- **New: add and rename shopping items from Home Assistant** — e.g. via voice assistant: "add 2 kg flour to Norish Unsorted".
+- **New: calories and servings** — from Norish's nutrition calculation (Norish v0.25), as sensor attributes (`calories`, `servings`) and in calendar event descriptions.
+- **Recipe images** now come straight from the calendar data (fewer API requests).
+- Store list is cached properly even when you have no stores.
+
+See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 ---
 

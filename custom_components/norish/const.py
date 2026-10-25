@@ -31,3 +31,15 @@ POLL_INTERVAL_OPTIONS: dict[int, str] = {
 # current one is exhausted — no manual "Reconfigure" required.
 CONF_NORISH_EMAIL = "norish_email"
 CONF_NORISH_PASSWORD = "norish_password"
+
+# Norish API keys are rate-limited by Better Auth (500 requests / 1 h window).
+# The request counter only resets after a gap of MORE than one hour without any
+# request, so continuous polling slowly exhausts the key and Norish starts
+# answering 401 – which looks exactly like an expired key (v1.8.0).
+#
+# Nightly quiet window: no polling between these local times. The resulting
+# gap (> 1 h) resets the counter every night before it can reach the limit.
+QUIET_WINDOW_START = (3, 0)   # 03:00 local time
+QUIET_WINDOW_END = (4, 5)     # 04:05 local time
+# Pause after a 401 burst before deciding the key is really invalid.
+RATE_LIMIT_COOLDOWN_SECONDS = 65 * 60

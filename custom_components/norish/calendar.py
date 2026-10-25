@@ -115,10 +115,21 @@ class NorishCalendar(CoordinatorEntity, CalendarEntity):
                 else:
                     summary = f"{slot}: Meal"
 
-                # Description: include note title when present
+                # Description: note text for notes, nutrition for recipes
                 description = f"Norish – {slot}"
                 if item_type == "note" and note_title:
                     description = f"Norish – {slot} (note): {note_title}"
+                else:
+                    details: list[str] = []
+                    try:
+                        if item.get("calories"):
+                            details.append(f"{round(float(item['calories']))} kcal")
+                    except (TypeError, ValueError):
+                        pass
+                    if item.get("servings"):
+                        details.append(f"{item['servings']} servings")
+                    if details:
+                        description += "\n" + " · ".join(details)
 
                 # Build timezone-aware start/end datetimes
                 start_dt = datetime(

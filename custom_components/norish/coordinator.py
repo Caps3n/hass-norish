@@ -1,5 +1,22 @@
 """Coordinator for the Norish API.
 
+v1.8.0 – Rate-limit aware polling + Norish v0.25 API changes.
+- Root cause of the "API key expired" banner after ~24 h: Norish API keys are
+  rate-limited (500 requests per 1 h window) and the counter only resets after
+  more than one hour WITHOUT any request. Continuous polling therefore exhausts
+  the key and Norish answers 401 although the key itself is still valid.
+  * calendar.listItems + groceries.list are now fetched in ONE batched tRPC
+    request (the key is verified once per HTTP request → half the usage).
+  * Nightly quiet window (03:00–04:05 local): no polling, so the counter resets
+    every night.
+  * A 401 burst that survives direct validation now triggers a 65-minute
+    cooldown first. Only if the key is still rejected after the cooldown is
+    ConfigEntryAuthFailed raised.
+- groceries.toggle / groceries.delete now take ``groceries: [{id, version}]``
+  (Norish changed the input from ``groceryIds``) – fixes check/delete in HA.
+- New: groceries.create and groceries.update (add / rename items from HA).
+- Recipe images fall back to ``recipeImage`` returned by calendar.listItems.
+
 v1.7.0 – Calendar notes support.
 - Calendar items can now carry a free-text ``note`` field (e.g. "Going out for dinner").
 - Notes are surfaced in the CalendarEvent summary (when no recipe is planned) and
@@ -56,8 +73,9 @@ import json
 import logging
 import os
 import urllib.parse
-from datetime import date, datetime, timedelta
-from typing import Any
+import uuid
+from datetime import date, datetime, time, timedelta
+from typing import Any, NoReturn
 
 import aiohttp
 
@@ -67,12 +85,16 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_NORISH_EMAIL,
     CONF_NORISH_PASSWORD,
     CONF_POLL_INTERVAL,
     DEFAULT_POLL_INTERVAL,
+    QUIET_WINDOW_END,
+    QUIET_WINDOW_START,
+    RATE_LIMIT_COOLDOWN_SECONDS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -153,6 +175,15 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Remember the user-configured interval so we can restore it after backoff.
         self._normal_update_interval = timedelta(seconds=poll_interval)
 
+        # Rate-limit cooldown (v1.8.0): set when a 401 burst survives direct
+        # validation. While active, no requests are sent so the key's rate-limit
+        # window can reset. _cooldown_used stays True until the next success, so
+        # a key that is still rejected after the cooldown triggers re-auth.
+        self._cooldown_until: datetime | None = None
+        self._cooldown_used: bool = False
+        # Set while refreshing right after a user action (see mutations).
+        self._force_refresh: bool = False
+
     def _get_headers(self) -> dict[str, str]:
         """Return headers for authenticated API requests."""
         return {
@@ -193,7 +224,13 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         On success (failures == 0) the normal interval is restored.
         On failure the interval is increased exponentially so HA waits longer
         before the next retry, reducing wasted API requests against a dead key.
+        A running rate-limit cooldown always takes precedence.
         """
+        if self._cooldown_active():
+            remaining = self._cooldown_until - dt_util.utcnow()  # type: ignore[operator]
+            self.update_interval = max(remaining, timedelta(seconds=60))
+            return
+
         if self._consecutive_failures <= 0:
             if self.update_interval != self._normal_update_interval:
                 _LOGGER.info(
@@ -341,6 +378,82 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._renewal_in_progress = False
 
     # ------------------------------------------------------------------
+    # Rate-limit helpers (v1.8.0)
+    # ------------------------------------------------------------------
+
+    def _cooldown_active(self) -> bool:
+        """Return True while a rate-limit cooldown is running."""
+        return (
+            self._cooldown_until is not None
+            and dt_util.utcnow() < self._cooldown_until
+        )
+
+    @staticmethod
+    def _in_quiet_window() -> bool:
+        """Return True during the nightly no-polling window (local time)."""
+        now = dt_util.now().time()
+        return time(*QUIET_WINDOW_START) <= now < time(*QUIET_WINDOW_END)
+
+    async def _handle_unauthorized(self, context: str) -> NoReturn:
+        """Decide how to react to a 401 from Norish. Always raises.
+
+        Norish answers 401 both for an invalid key and for a rate-limited key,
+        so a 401 alone never proves the key is dead:
+          1. Fewer than MAX_AUTH_FAILURES in a row → transient, retry later.
+          2. Stored credentials → renew the key silently.
+          3. Direct validation succeeds → transient burst, retry later.
+          4. Key still rejected → 65-minute cooldown (lets the rate-limit
+             window reset). Only if the key is STILL rejected after the
+             cooldown is ConfigEntryAuthFailed raised.
+        """
+        self._consecutive_auth_failures += 1
+        _LOGGER.warning(
+            "Norish: 401 for %s – consecutive auth failures: %d/%d",
+            context, self._consecutive_auth_failures, MAX_AUTH_FAILURES,
+        )
+        if self._consecutive_auth_failures < MAX_AUTH_FAILURES:
+            raise UpdateFailed(
+                f"Norish: transient 401 for {context} "
+                f"({self._consecutive_auth_failures}/{MAX_AUTH_FAILURES}, will retry)"
+            )
+
+        if await self._async_renew_api_key():
+            raise UpdateFailed(f"Norish: API key renewed, retrying {context}")
+
+        key_valid = await self._async_validate_key()
+        if key_valid is True:
+            _LOGGER.warning(
+                "Norish: 401 burst but direct validation succeeded – "
+                "treating as transient, resetting auth counter."
+            )
+            self._consecutive_auth_failures = 0
+            raise UpdateFailed(f"Norish: transient 401 burst for {context}")
+        if key_valid is None:
+            raise UpdateFailed(
+                f"Norish: cannot reach server after 401 burst for {context}"
+            )
+
+        if not self._cooldown_used:
+            self._cooldown_used = True
+            self._consecutive_auth_failures = 0
+            self._cooldown_until = dt_util.utcnow() + timedelta(
+                seconds=RATE_LIMIT_COOLDOWN_SECONDS
+            )
+            _LOGGER.warning(
+                "Norish: API key rejected – most likely the Norish rate limit "
+                "(500 requests/hour, resets only after 1 h without requests). "
+                "Pausing all requests for %d minutes before re-checking.",
+                RATE_LIMIT_COOLDOWN_SECONDS // 60,
+            )
+            raise UpdateFailed("Norish: API key rate-limited, cooling down")
+
+        _LOGGER.error(
+            "Norish: API key still rejected after the rate-limit cooldown – "
+            "key is invalid or expired. Re-authentication required."
+        )
+        raise ConfigEntryAuthFailed("Norish API key invalid or expired")
+
+    # ------------------------------------------------------------------
     # tRPC helpers
     # ------------------------------------------------------------------
 
@@ -348,19 +461,21 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _safe_get_trpc_result(
         data: list[Any] | None,
         default: Any = None,
+        index: int = 0,
     ) -> Any:
-        """Safely extract a tRPC result from the batch response."""
-        if not data or not isinstance(data, list):
+        """Safely extract one tRPC result from a batch response."""
+        if not data or not isinstance(data, list) or len(data) <= index:
             return default
         try:
-            result = data[0].get("result", {})
-            if "error" in result:
+            element = data[index]
+            if "error" in element:
+                error = element["error"].get("json", element["error"])
                 _LOGGER.error(
                     "tRPC error in response: %s",
-                    result["error"].get("message", "unknown error"),
+                    error.get("message", "unknown error"),
                 )
                 return default
-            return result.get("data", {}).get("json", default)
+            return element.get("result", {}).get("data", {}).get("json", default)
         except (KeyError, AttributeError, IndexError) as err:
             _LOGGER.warning("Failed to extract tRPC result: %s", err)
             return default
@@ -370,12 +485,26 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         procedure: str,
         payload: dict[str, Any] | None = None,
     ) -> list[Any] | None:
-        """Fetch data from a tRPC endpoint with retry."""
-        trpc_input = {"0": {"json": payload if payload is not None else None}}
+        """Fetch a single tRPC query (see _fetch_trpc_batch)."""
+        return await self._fetch_trpc_batch([(procedure, payload)])
+
+    async def _fetch_trpc_batch(
+        self,
+        calls: list[tuple[str, dict[str, Any] | None]],
+    ) -> list[Any] | None:
+        """Fetch several tRPC queries in ONE HTTP request, with retry.
+
+        Norish verifies the API key once per HTTP request, so batching
+        directly reduces rate-limit usage. Result i belongs to calls[i].
+        """
+        procedures = ",".join(procedure for procedure, _ in calls)
+        trpc_input = {
+            str(i): {"json": payload} for i, (_, payload) in enumerate(calls)
+        }
         encoded = urllib.parse.quote(
             json.dumps(trpc_input, separators=(",", ":"))
         )
-        url = f"{self.base_url}/api/trpc/{procedure}?batch=1&input={encoded}"
+        url = f"{self.base_url}/api/trpc/{procedures}?batch=1&input={encoded}"
         session = async_get_clientsession(self.hass)
         headers = self._get_headers()
 
@@ -387,84 +516,24 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     timeout=aiohttp.ClientTimeout(total=30),
                 ) as resp:
                     if resp.status == 401:
-                        self._consecutive_auth_failures += 1
-                        _LOGGER.warning(
-                            "Norish: 401 for %s – consecutive auth failures: %d/%d",
-                            procedure,
-                            self._consecutive_auth_failures,
-                            MAX_AUTH_FAILURES,
-                        )
-                        if self._consecutive_auth_failures >= MAX_AUTH_FAILURES:
-                            # Try automatic renewal if credentials are stored
-                            renewed = await self._async_renew_api_key()
-                            if renewed:
-                                # Key renewed – update headers and retry this request
-                                headers = self._get_headers()
-                                raise UpdateFailed(
-                                    f"Norish: API key renewed, retrying {procedure}"
-                                )
-                            # Before declaring the key dead, do one direct
-                            # validation.  If it passes the consecutive 401s
-                            # were transient (e.g. Norish server restart) and
-                            # we can resume normal polling without user action.
-                            key_valid = await self._async_validate_key()
-                            if key_valid is True:
-                                _LOGGER.warning(
-                                    "Norish: %d consecutive 401s but direct "
-                                    "validation succeeded – treating as transient, "
-                                    "resetting auth counter.",
-                                    self._consecutive_auth_failures,
-                                )
-                                self._consecutive_auth_failures = 0
-                                raise UpdateFailed(
-                                    f"Norish: transient 401 burst for {procedure}, "
-                                    "recovered – will retry next interval"
-                                )
-                            if key_valid is None:
-                                # Network error during validation – server
-                                # temporarily unreachable, retry later.
-                                _LOGGER.warning(
-                                    "Norish: %d consecutive 401s and validation "
-                                    "request also failed (network) – will retry.",
-                                    self._consecutive_auth_failures,
-                                )
-                                raise UpdateFailed(
-                                    f"Norish: cannot reach server after {procedure} "
-                                    "401 burst – will retry"
-                                )
-                            # key_valid is False → key is genuinely expired
-                            _LOGGER.error(
-                                "Norish: %d consecutive 401s – API key invalid or "
-                                "expired. Re-authentication required.",
-                                self._consecutive_auth_failures,
-                            )
-                            raise ConfigEntryAuthFailed(
-                                "Norish API key invalid or expired"
-                            )
-                        raise UpdateFailed(
-                            f"Norish: transient 401 for {procedure} "
-                            f"({self._consecutive_auth_failures}/{MAX_AUTH_FAILURES} "
-                            "consecutive failures, will retry)"
-                        )
+                        await self._handle_unauthorized(procedures)
 
                     if resp.status == 429:
                         # Rate-limited: tell HA to wait until next poll interval.
-                        # Do NOT raise ConfigEntryAuthFailed — that would stop all
-                        # polling and require manual re-auth.
                         retry_after = resp.headers.get("Retry-After", "unknown")
                         _LOGGER.warning(
                             "Norish: rate-limited (429) for %s – retry-after: %s. "
                             "Will retry on next poll interval.",
-                            procedure, retry_after,
+                            procedures, retry_after,
                         )
                         raise UpdateFailed(
-                            f"Norish API rate limit reached for {procedure} "
+                            f"Norish API rate limit reached for {procedures} "
                             f"(Retry-After: {retry_after})"
                         )
 
                     if resp.status == 404:
                         _LOGGER.error(
-                            "Norish: endpoint not found (404): %s", procedure
+                            "Norish: endpoint not found (404): %s", procedures
                         )
                         return None
 
@@ -473,22 +542,24 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             delay = RETRY_DELAY_BASE * (2 ** attempt)
                             _LOGGER.warning(
                                 "Norish: server error %s for %s, retry %d/%d in %ds",
-                                resp.status, procedure,
+                                resp.status, procedures,
                                 attempt + 1, MAX_RETRIES, delay,
                             )
                             await asyncio.sleep(delay)
                             continue
                         _LOGGER.error(
                             "Norish: server error %s for %s after %d attempts",
-                            resp.status, procedure, MAX_RETRIES,
+                            resp.status, procedures, MAX_RETRIES,
                         )
                         return None
 
-                    if resp.status != 200:
+                    # 207 = tRPC batch where only some calls failed; the
+                    # per-call errors are handled by _safe_get_trpc_result.
+                    if resp.status not in (200, 207):
                         text = await resp.text()
                         _LOGGER.error(
                             "Norish: unexpected status %s for %s: %s",
-                            resp.status, procedure, text[:200],
+                            resp.status, procedures, text[:200],
                         )
                         return None
 
@@ -504,13 +575,13 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     delay = RETRY_DELAY_BASE * (2 ** attempt)
                     _LOGGER.warning(
                         "Norish: timeout for %s, retry %d/%d in %ds",
-                        procedure, attempt + 1, MAX_RETRIES, delay,
+                        procedures, attempt + 1, MAX_RETRIES, delay,
                     )
                     await asyncio.sleep(delay)
                     continue
                 _LOGGER.error(
                     "Norish: timeout for %s after %d attempts",
-                    procedure, MAX_RETRIES,
+                    procedures, MAX_RETRIES,
                 )
                 return None
 
@@ -522,14 +593,14 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     delay = RETRY_DELAY_BASE * (2 ** attempt)
                     _LOGGER.warning(
                         "Norish: connection dropped for %s (%s), retry %d/%d in %ds",
-                        procedure, type(err).__name__,
+                        procedures, type(err).__name__,
                         attempt + 1, MAX_RETRIES, delay,
                     )
                     await asyncio.sleep(delay)
                     continue
                 _LOGGER.error(
                     "Norish: connection failed for %s after %d attempts: %s",
-                    procedure, MAX_RETRIES, err,
+                    procedures, MAX_RETRIES, err,
                 )
                 return None
 
@@ -538,12 +609,12 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     delay = RETRY_DELAY_BASE * (2 ** attempt)
                     _LOGGER.warning(
                         "Norish: network error for %s: %s, retry %d/%d in %ds",
-                        procedure, err, attempt + 1, MAX_RETRIES, delay,
+                        procedures, err, attempt + 1, MAX_RETRIES, delay,
                     )
                     await asyncio.sleep(delay)
                     continue
                 _LOGGER.error(
-                    "Norish: network error for %s: %s", procedure, err
+                    "Norish: network error for %s: %s", procedures, err
                 )
                 return None
 
@@ -552,7 +623,7 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _post_trpc(
         self,
         procedure: str,
-        payload: dict[str, Any],
+        payload: Any,
     ) -> list[Any] | None:
         """POST a mutation to a tRPC endpoint."""
         url = f"{self.base_url}/api/trpc/{procedure}?batch=1"
@@ -569,26 +640,7 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 timeout=aiohttp.ClientTimeout(total=30),
             ) as resp:
                 if resp.status == 401:
-                    self._consecutive_auth_failures += 1
-                    _LOGGER.warning(
-                        "Norish: POST %s – 401, consecutive auth failures: %d/%d",
-                        procedure,
-                        self._consecutive_auth_failures,
-                        MAX_AUTH_FAILURES,
-                    )
-                    if self._consecutive_auth_failures >= MAX_AUTH_FAILURES:
-                        renewed = await self._async_renew_api_key()
-                        if renewed:
-                            raise UpdateFailed(
-                                f"Norish: API key renewed, retrying POST {procedure}"
-                            )
-                        raise ConfigEntryAuthFailed(
-                            "Norish API key invalid or expired on POST"
-                        )
-                    raise UpdateFailed(
-                        f"Norish: transient 401 for POST {procedure} "
-                        f"({self._consecutive_auth_failures}/{MAX_AUTH_FAILURES})"
-                    )
+                    await self._handle_unauthorized(f"POST {procedure}")
                 if resp.status == 429:
                     _LOGGER.warning(
                         "Norish: POST %s rate-limited (429)", procedure
@@ -616,22 +668,60 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     # Public mutation helpers (used by todo.py)
     # ------------------------------------------------------------------
 
+    async def _async_refresh_after_mutation(self) -> None:
+        """Refresh right away so follow-up actions use the new item versions.
+
+        Not debounced (async_request_refresh waits up to 10 s), and allowed
+        inside the nightly quiet window because the user just acted.
+        """
+        self._force_refresh = True
+        try:
+            await self.async_refresh()
+        finally:
+            self._force_refresh = False
+
+    def _grocery_refs(self, grocery_ids: list[str]) -> list[dict[str, Any]]:
+        """Return [{id, version}] for the given IDs from the last poll.
+
+        Norish uses optimistic locking: every grocery mutation must send the
+        item's current version, otherwise the change is rejected as stale.
+        """
+        groceries: list[dict[str, Any]] = (
+            self.data.get("groceries", []) if self.data else []
+        )
+        version_by_id = {g.get("id"): g.get("version") for g in groceries}
+        refs: list[dict[str, Any]] = []
+        for grocery_id in grocery_ids:
+            version = version_by_id.get(grocery_id)
+            if not isinstance(version, int) or version < 1:
+                _LOGGER.warning(
+                    "Norish: no version known for grocery %s – skipping", grocery_id
+                )
+                continue
+            refs.append({"id": grocery_id, "version": version})
+        return refs
+
     async def async_delete_groceries(self, grocery_ids: list[str]) -> bool:
         """Delete grocery items from Norish."""
-        payload: dict[str, Any] = {"groceryIds": grocery_ids}
-        result = await self._post_trpc("groceries.delete", payload)
+        refs = self._grocery_refs(grocery_ids)
+        if not refs:
+            return False
+        result = await self._post_trpc("groceries.delete", {"groceries": refs})
         if result is None:
             _LOGGER.error("Norish: failed to delete groceries %s", grocery_ids)
             return False
         _LOGGER.debug("Norish: deleted groceries %s", grocery_ids)
-        await self.async_request_refresh()
+        await self._async_refresh_after_mutation()
         return True
 
     async def async_toggle_grocery(
         self, grocery_id: str, is_done: bool
     ) -> bool:
         """Toggle a grocery item's done state."""
-        payload: dict[str, Any] = {"groceryIds": [grocery_id], "isDone": is_done}
+        refs = self._grocery_refs([grocery_id])
+        if not refs:
+            return False
+        payload: dict[str, Any] = {"groceries": refs, "isDone": is_done}
         result = await self._post_trpc("groceries.toggle", payload)
         if result is None:
             _LOGGER.error(
@@ -640,7 +730,45 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
             return False
         _LOGGER.debug("Norish: toggled grocery %s → isDone=%s", grocery_id, is_done)
-        await self.async_request_refresh()
+        await self._async_refresh_after_mutation()
+        return True
+
+    async def async_create_grocery(self, text: str, store_id: str | None) -> bool:
+        """Add a new grocery item to Norish (optionally assigned to a store)."""
+        payload = [
+            {
+                "id": str(uuid.uuid4()),
+                "name": text,
+                "unit": None,
+                "amount": None,
+                "isDone": False,
+                "storeId": store_id,
+            }
+        ]
+        result = await self._post_trpc("groceries.create", payload)
+        if result is None:
+            _LOGGER.error("Norish: failed to create grocery '%s'", text)
+            return False
+        _LOGGER.debug("Norish: created grocery '%s' (store %s)", text, store_id)
+        await self._async_refresh_after_mutation()
+        return True
+
+    async def async_rename_grocery(self, grocery_id: str, text: str) -> bool:
+        """Change a grocery item's text; Norish parses amount/unit from it."""
+        refs = self._grocery_refs([grocery_id])
+        if not refs:
+            return False
+        payload = {
+            "groceryId": grocery_id,
+            "raw": text,
+            "version": refs[0]["version"],
+        }
+        result = await self._post_trpc("groceries.update", payload)
+        if result is None:
+            _LOGGER.error("Norish: failed to rename grocery %s", grocery_id)
+            return False
+        _LOGGER.debug("Norish: renamed grocery %s → '%s'", grocery_id, text)
+        await self._async_refresh_after_mutation()
         return True
 
     # ------------------------------------------------------------------
@@ -650,11 +778,23 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch all Norish data.
 
-        On 401: raises ConfigEntryAuthFailed so HA shows 'Reconfigure'.
+        On 401: see _handle_unauthorized (cooldown first, re-auth only after).
         On 429: raises UpdateFailed so HA retries on the next poll interval.
         On network errors: raises UpdateFailed so HA retries on next poll.
         Backoff: update_interval grows after each failure and resets on success.
         """
+        # During a rate-limit cooldown or the nightly quiet window no request is
+        # sent at all – that gap is what resets the key's rate-limit counter.
+        # Keep serving the last data so entities stay available.
+        if self._cooldown_active():
+            self._apply_reconnect_backoff()
+            if self.data:
+                return self.data
+            raise UpdateFailed("Norish: API key rate-limited, cooling down")
+        if self.data and self._in_quiet_window() and not self._force_refresh:
+            _LOGGER.debug("Norish: nightly quiet window – skipping poll")
+            return self.data
+
         data: dict[str, Any] = {
             "calendar": [],
             "groceries": [],
@@ -662,8 +802,7 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         }
 
         try:
-            await self._fetch_calendar(data)
-            await self._fetch_groceries(data)
+            await self._fetch_calendar_and_groceries(data)
             await self._fetch_stores_cached(data)
         except ConfigEntryAuthFailed:
             # API key is invalid → user must reconfigure
@@ -701,6 +840,8 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Success – reset all failure counters and restore normal poll interval
         self._consecutive_failures = 0
         self._consecutive_auth_failures = 0
+        self._cooldown_used = False
+        self._cooldown_until = None
         self._apply_reconnect_backoff()
 
         self._last_successful_update = date.today()
@@ -715,39 +856,39 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     # Data fetch methods
     # ------------------------------------------------------------------
 
-    async def _fetch_calendar(self, data: dict[str, Any]) -> None:
-        """Fetch calendar entries."""
+    async def _fetch_calendar_and_groceries(self, data: dict[str, Any]) -> None:
+        """Fetch calendar entries and the grocery list in ONE request."""
         today = date.today()
         start_date = (today - timedelta(days=1)).strftime("%Y-%m-%d")
         end_date = (today + timedelta(days=14)).strftime("%Y-%m-%d")
 
-        _LOGGER.debug("Norish: fetching calendar %s → %s", start_date, end_date)
+        _LOGGER.debug("Norish: fetching calendar %s → %s + groceries", start_date, end_date)
 
-        c_data = await self._fetch_trpc(
-            "calendar.listItems",
-            {"startISO": start_date, "endISO": end_date},
+        batch = await self._fetch_trpc_batch(
+            [
+                ("calendar.listItems", {"startISO": start_date, "endISO": end_date}),
+                ("groceries.list", None),
+            ]
         )
-        if c_data:
-            items = self._safe_get_trpc_result(c_data, [])
-            if isinstance(items, list):
-                data["calendar"] = items
-                _LOGGER.debug("Norish: loaded %d calendar items", len(items))
-            else:
-                _LOGGER.warning(
-                    "Norish: unexpected calendar format: %s", type(items)
-                )
-        else:
-            _LOGGER.warning("Norish: no calendar data received")
-
-    async def _fetch_groceries(self, data: dict[str, Any]) -> None:
-        """Fetch the grocery / shopping list."""
-        g_data = await self._fetch_trpc("groceries.list")
-        if not g_data:
-            _LOGGER.debug("Norish: no grocery data received")
+        if not batch:
+            _LOGGER.warning("Norish: no calendar / grocery data received")
             return
 
-        result = self._safe_get_trpc_result(g_data, {})
+        self._parse_calendar(data, self._safe_get_trpc_result(batch, [], index=0))
+        self._parse_groceries(data, self._safe_get_trpc_result(batch, {}, index=1))
 
+    @staticmethod
+    def _parse_calendar(data: dict[str, Any], items: Any) -> None:
+        """Store calendar.listItems result (recipes and notes)."""
+        if isinstance(items, list):
+            data["calendar"] = items
+            _LOGGER.debug("Norish: loaded %d calendar items", len(items))
+        else:
+            _LOGGER.warning("Norish: unexpected calendar format: %s", type(items))
+
+    @staticmethod
+    def _parse_groceries(data: dict[str, Any], result: Any) -> None:
+        """Store groceries.list result ({groceries, recurringGroceries, ...})."""
         if isinstance(result, list):
             items: list[Any] = result
         elif isinstance(result, dict):
@@ -790,7 +931,8 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             > STORE_REFRESH_HOURS * 3600
         )
 
-        if not cache_expired and self._cached_stores:
+        # An empty store list is a valid cache entry too (users without stores)
+        if not cache_expired:
             _LOGGER.debug("Norish: using cached store list (%d stores)", len(self._cached_stores))
             data["stores"] = dict(self._cached_stores)
             self.store_map = dict(self._cached_stores)
@@ -901,11 +1043,14 @@ class NorishCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         calendar_items: list[dict[str, Any]] = data.get("calendar", [])
 
         for event in calendar_items:
-            recipe = event.get("_recipe") or {}
-            if not recipe:
+            if event.get("itemType") == "note":
                 continue
+            recipe = event.get("_recipe") or {}
+            # calendar.listItems already returns recipeImage (Norish v0.19+)
             image_path: str | None = (
-                recipe.get("image") or recipe.get("imageUrl")
+                recipe.get("image")
+                or recipe.get("imageUrl")
+                or event.get("recipeImage")
             )
             if not image_path:
                 continue

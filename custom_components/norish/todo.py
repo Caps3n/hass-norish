@@ -1,7 +1,7 @@
 """Todo platform for Norish shopping list.
 
 Creates one TodoListEntity per store (+ one for unsorted items).
-Check/uncheck and delete are synced back to the Norish API in real time.
+Add, rename, check/uncheck and delete are synced back to the Norish API.
 """
 from __future__ import annotations
 
@@ -137,7 +137,8 @@ class NorishStoreList(CoordinatorEntity, TodoListEntity):
             self._attr_unique_id = f"{entry.entry_id}_shopping_{_slugify(store_name)}"
 
         self._attr_supported_features = (
-            TodoListEntityFeature.UPDATE_TODO_ITEM
+            TodoListEntityFeature.CREATE_TODO_ITEM
+            | TodoListEntityFeature.UPDATE_TODO_ITEM
             | TodoListEntityFeature.DELETE_TODO_ITEM
         )
 
@@ -157,13 +158,32 @@ class NorishStoreList(CoordinatorEntity, TodoListEntity):
 
         return [_grocery_to_todo_item(g) for g in filtered]
 
+    async def async_create_todo_item(self, item: TodoItem) -> None:
+        """Add a new item to this store's list in Norish.
+
+        Norish parses amount and unit from the text, e.g. "2 kg flour".
+        """
+        if not item.summary:
+            return
+        _LOGGER.debug("Norish: create '%s' in store %s", item.summary, self.store_id)
+        await self.coordinator.async_create_grocery(item.summary, self.store_id)
+
     async def async_update_todo_item(self, item: TodoItem) -> None:
-        """Toggle item done/undone — syncs back to Norish immediately."""
+        """Rename and/or toggle an item — syncs back to Norish immediately."""
         if not item.uid:
             return
-        is_done = item.status == TodoItemStatus.COMPLETED
-        _LOGGER.debug("Norish: toggle %s → isDone=%s", item.uid, is_done)
-        await self.coordinator.async_toggle_grocery(item.uid, is_done)
+        current = next(
+            (t for t in self.todo_items if t.uid == item.uid), None
+        )
+
+        if item.summary and current is not None and item.summary != current.summary:
+            _LOGGER.debug("Norish: rename %s → '%s'", item.uid, item.summary)
+            await self.coordinator.async_rename_grocery(item.uid, item.summary)
+
+        if current is None or item.status != current.status:
+            is_done = item.status == TodoItemStatus.COMPLETED
+            _LOGGER.debug("Norish: toggle %s → isDone=%s", item.uid, is_done)
+            await self.coordinator.async_toggle_grocery(item.uid, is_done)
 
     async def async_delete_todo_items(self, uids: list[str]) -> None:
         """Delete items — syncs back to Norish immediately."""

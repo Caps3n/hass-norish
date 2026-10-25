@@ -92,10 +92,13 @@ class NorishRecipeCamera(CoordinatorEntity, Camera):
 
             # Fallback: remote image from recipe details
             recipe_details: dict = event.get("_recipe") or {}
-            if recipe_details:
-                image_url = recipe_details.get("image") or recipe_details.get("imageUrl")
-                if image_url:
-                    return f"{base_url}{image_url}" if image_url.startswith("/") else image_url
+            image_url = (
+                recipe_details.get("image")
+                or recipe_details.get("imageUrl")
+                or event.get("recipeImage")
+            )
+            if image_url:
+                return f"{base_url}{image_url}" if image_url.startswith("/") else image_url
 
             recipe_id: str | None = event.get("recipeId")
             if recipe_id and base_url:

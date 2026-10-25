@@ -125,15 +125,9 @@ class NorishMealSensor(CoordinatorEntity, SensorEntity):
         """Return additional attributes."""
         meals = self._get_filtered_meals()
 
-        def _meal_label(m: dict[str, Any]) -> str:
-            label = f"{m['type']}: {m['name']}"
-            if m.get("note"):
-                label += f" – {m['note']}"
-            return label
-
         attributes: dict[str, Any] = {
             "meal_count": len(meals),
-            "meals": [_meal_label(m) for m in meals],
+            "meals": [f"{m['type']}: {m['name']}" for m in meals],
             "raw_data": meals,
         }
 
@@ -145,6 +139,10 @@ class NorishMealSensor(CoordinatorEntity, SensorEntity):
                 attributes["recipe_id"] = first["recipe_id"]
             if first.get("note"):
                 attributes["note"] = first["note"]
+            if first.get("calories") is not None:
+                attributes["calories"] = first["calories"]
+            if first.get("servings") is not None:
+                attributes["servings"] = first["servings"]
 
         return attributes
 
@@ -193,8 +191,11 @@ class NorishMealSensor(CoordinatorEntity, SensorEntity):
             # Prefer locally cached image, then remote, then fallback URL
             image_url: str | None = event.get("_local_image")
             if not image_url:
-                if recipe_details:
-                    image_url = recipe_details.get("image") or recipe_details.get("imageUrl")
+                image_url = (
+                    recipe_details.get("image")
+                    or recipe_details.get("imageUrl")
+                    or event.get("recipeImage")
+                )
                 if image_url and image_url.startswith("/") and base_url:
                     image_url = f"{base_url}{image_url}"
                 elif not image_url and recipe_id and base_url:
@@ -207,6 +208,9 @@ class NorishMealSensor(CoordinatorEntity, SensorEntity):
                     "recipe_id": recipe_id,
                     "image": image_url,
                     "note": note_title if item_type == "note" else "",
+                    "item_type": item_type,
+                    "calories": event.get("calories"),
+                    "servings": event.get("servings"),
                 }
             )
 
@@ -308,8 +312,11 @@ class NorishWeekPlannerSensor(CoordinatorEntity, SensorEntity):
 
                 image_url: str | None = event.get("_local_image")
                 if not image_url:
-                    if recipe_details:
-                        image_url = recipe_details.get("image") or recipe_details.get("imageUrl")
+                    image_url = (
+                        recipe_details.get("image")
+                        or recipe_details.get("imageUrl")
+                        or event.get("recipeImage")
+                    )
                     if image_url and image_url.startswith("/") and base_url:
                         image_url = f"{base_url}{image_url}"
                     elif not image_url and recipe_id and base_url:
@@ -322,6 +329,9 @@ class NorishWeekPlannerSensor(CoordinatorEntity, SensorEntity):
                         "recipe_id": recipe_id,
                         "image": image_url,
                         "note": note_title if item_type == "note" else "",
+                        "item_type": item_type,
+                        "calories": event.get("calories"),
+                        "servings": event.get("servings"),
                     }
                 )
 
