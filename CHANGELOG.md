@@ -37,6 +37,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `meals` attribute no longer repeats a note's text twice.
 - Version scheme back to plain SemVer (`1.8.0`).
+- 📦 `aiohttp` removed from the manifest `requirements` — it ships with Home Assistant
+  and hassfest now rejects listing it (GitHub validation failed without this).
+- 🏠 Minimum Home Assistant version corrected to **2024.11** in `hacs.json` and the README
+  (the coordinator uses the `config_entry` argument introduced in 2024.11; older
+  versions would fail on startup).
+
+### Documentation
+- README: new section "How the integration protects your API key", poll interval
+  table, full attribute reference (`note`, `calories`, `servings`, `item_type`),
+  correct entity IDs (`calendar.norish_meal_calendar`, `todo.norish_<store>`),
+  shopping list actions with an automation example, dashboard example for notes
+  and calories, and new troubleshooting entries.
 
 ---
 
